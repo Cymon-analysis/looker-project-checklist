@@ -57,11 +57,22 @@
     "startDate": "2026-06-29",
     "updatedAt": 1782767457930
   },
-  "weeklies": [],
+  "weeklies": [
+    {
+      "id": "w-1782764950020-muyei",
+      "date": "2026-06-29",
+      "title": "Kickoff",
+      "participants": "Simon, Chaima, Hamza, Alexandre",
+      "notes": "Phase de cadrage rapide : le client a dÃÂÃÂÃÂÃÂ©jÃÂÃÂÃÂÃÂ  identifiÃÂÃÂÃÂÃÂ© ses besoins. LÃÂÃÂ¢ÃÂÃÂÃÂÃÂobjectif seraitÃÂÃÂÃÂÃÂ  principalement de faire un rÃÂÃÂÃÂÃÂ©capitulatif des attentes et de rÃÂÃÂÃÂÃÂ©aliser un audit technique de notre cÃÂÃÂÃÂÃÂ´tÃÂÃÂÃÂÃÂ©.\nPoints de suivi opÃÂÃÂÃÂÃÂ©rationnel : mise en place de deux points hebdomadaires, sans la participation de CÃÂÃÂÃÂÃÂ©dric :\nmercredi ÃÂÃÂÃÂÃÂ  15h \nvendredi ÃÂÃÂÃÂÃÂ  14h.\n\npoint mensuel avec Hamza, Alexandre et CÃÂÃÂÃÂÃÂ©dric : rÃÂÃÂÃÂÃÂ©utilisation dÃÂÃÂ¢ÃÂÃÂÃÂÃÂun des crÃÂÃÂÃÂÃÂ©neaux actuellement utilisÃÂÃÂÃÂÃÂ©s pour les points hebdomadaires.\nPoint avec les ÃÂÃÂÃÂÃÂ©quipes mÃÂÃÂÃÂÃÂ©tier afin de valider lÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©tape dÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©vangÃÂÃÂÃÂÃÂ©lisation et les dashboards (politique)\nRLS  : ÃÂÃÂÃÂÃÂ  prÃÂÃÂÃÂÃÂ©voir dÃÂÃÂÃÂÃÂ¨s le dÃÂÃÂÃÂÃÂ©marrage du projet. Il nÃÂÃÂ¢ÃÂÃÂÃÂÃÂexiste actuellement pas de documentation sur ce point.\nAspect IA : ÃÂÃÂÃÂÃÂ  discuter afin de dÃÂÃÂÃÂÃÂ©terminer si ce sujet fera partie du pÃÂÃÂÃÂÃÂ©rimÃÂÃÂÃÂÃÂ¨tre du projet.",
+      "actions": "",
+      "updatedAt": 1782764950020,
+      "createdAt": 1782764950020
+    }
+  ],
   "todos": [],
   "openPhases": [
     "infra",
     "lookml"
   ],
-  "updatedAt": 1782769142428
+  "updatedAt": 1782769422164
 }
