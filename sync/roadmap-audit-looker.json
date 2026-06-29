@@ -1,0 +1,38 @@
+{
+  "layout": {
+    "project-mgmt": {
+      "startDay": 0,
+      "span": 2
+    },
+    "infra": {
+      "startDay": 1,
+      "span": 3
+    },
+    "governance": {
+      "startDay": 6,
+      "span": 3
+    },
+    "lookml": {
+      "startDay": 5,
+      "span": 5
+    },
+    "cicd": {
+      "startDay": 8,
+      "span": 3
+    },
+    "content": {
+      "startDay": 10,
+      "span": 2
+    },
+    "adoption": {
+      "startDay": 11,
+      "span": 2
+    },
+    "platform": {
+      "startDay": 11,
+      "span": 2
+    }
+  },
+  "startDate": "2026-06-29",
+  "updatedAt": 1782756994462
+}
