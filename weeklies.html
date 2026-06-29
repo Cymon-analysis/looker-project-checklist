@@ -63,7 +63,7 @@
 
         <div class="weekly-paste-zone">
           <label class="field-label" for="weeklyRawPaste">Coller le CR complet</label>
-          <p class="paste-hint">Copiez-collez le compte-rendu brut : l'IA sépare automatiquement la discussion et les actions.</p>
+          <p class="paste-hint">Copiez-collez le compte-rendu brut : l'IA sépare la discussion (en Markdown) et les actions.</p>
           <textarea id="weeklyRawPaste" class="paste-textarea" placeholder="Collez ici l'intégralité du CR (discussion + actions)…"></textarea>
           <div class="paste-toolbar">
             <button type="button" id="analyzePasteBtn" class="btn-primary">Analyser avec Gemini</button>
@@ -75,7 +75,7 @@
           <p class="split-preview-label">Aperçu après analyse — modifiable avant enregistrement</p>
           <div class="weekly-section">
             <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit</label>
-            <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises, sujets de discussion…" required></textarea>
+            <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises… (Markdown : ## titres, - listes, **gras**)" required></textarea>
           </div>
           <div class="weekly-section">
             <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
@@ -124,6 +124,7 @@
   <script src="page-utils.js"></script>
   <script src="data.js"></script>
   <script src="action-matcher.js"></script>
+  <script src="markdown.js"></script>
   <script src="gemini-client.js"></script>
   <script src="weeklies.js"></script>
 </body>

@@ -71,8 +71,12 @@
       .flatMap((line) => {
         const trimmed = line.trim();
         if (!trimmed) return [];
+        if (/^#{1,3}\s+/.test(trimmed)) return [];
         if (/^[-*•–—]\s+/.test(trimmed)) return [trimmed.replace(/^[-*•–—]\s+/, "")];
         if (/^\d+[.)]\s+/.test(trimmed)) return [trimmed.replace(/^\d+[.)]\s+/, "")];
+        if (/^(action|todo|à faire|prochaine étape)\s*:\s*/i.test(trimmed)) {
+          return [trimmed.replace(/^(action|todo|à faire|prochaine étape)\s*:\s*/i, "")];
+        }
         if (trimmed.includes(";")) {
           return trimmed
             .split(";")
@@ -81,7 +85,7 @@
         }
         return [trimmed];
       })
-      .map((s) => s.replace(/^[-*•–—]\s+/, "").trim())
+      .map((s) => s.replace(/^[-*•–—]\s+/, "").replace(/\*\*/g, "").trim())
       .filter((s) => s.length >= 3);
 
     const seen = new Set();

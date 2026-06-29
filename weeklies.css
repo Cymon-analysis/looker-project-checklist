@@ -60,6 +60,60 @@
   white-space: pre-wrap;
 }
 
+.markdown-body {
+  font-size: 0.875rem;
+  color: var(--text2);
+  line-height: 1.55;
+}
+
+.markdown-body h3.md-h1,
+.markdown-body h3.md-h2,
+.markdown-body h4.md-h3 {
+  color: var(--text);
+  margin: 12px 0 6px;
+  font-weight: 600;
+}
+
+.markdown-body h3.md-h2,
+.markdown-body h3.md-h1 {
+  font-size: 0.9375rem;
+}
+
+.markdown-body h4.md-h3 {
+  font-size: 0.875rem;
+}
+
+.markdown-body p {
+  margin: 0 0 8px;
+  white-space: normal;
+}
+
+.markdown-body .md-list {
+  margin: 4px 0 10px 1.1rem;
+  padding: 0;
+}
+
+.markdown-body .md-list li {
+  margin-bottom: 4px;
+}
+
+.markdown-body strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.markdown-body code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  background: rgba(138, 138, 150, 0.12);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.markdown-actions .md-list li {
+  color: var(--text);
+}
+
 .weekly-form textarea {
   width: 100%;
   min-height: 120px;

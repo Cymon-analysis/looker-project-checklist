@@ -46,12 +46,7 @@ async function analyzeWeeklyPaste({ silent = false } = {}) {
     document.getElementById("weeklyNotes").value = split.notes || "";
     document.getElementById("weeklyActions").value = split.actions || "";
     document.getElementById("splitPreview").classList.remove("hidden");
-    setGeminiStatus(
-      "ok",
-      GeminiClient.isEnabled()
-        ? "Séparation effectuée par Gemini — vérifiez avant enregistrement."
-        : "Séparation locale — activez Gemini pour une analyse plus précise."
-    );
+    setGeminiStatus("ok", formatSplitStatus(split));
     return true;
   } catch {
     setGeminiStatus("error", "Échec de l'analyse. Réessayez ou saisissez manuellement.");
@@ -70,9 +65,23 @@ function schedulePasteAnalyze() {
 }
 
 function escHtml(s) {
-  const d = document.createElement("div");
-  d.textContent = s || "";
-  return d.innerHTML;
+  return Markdown.escapeHtml(s);
+}
+
+function renderMd(text) {
+  return Markdown.render(text);
+}
+
+function formatSplitStatus(split) {
+  const count = ActionMatcher.parseActionsText(split.actions).length;
+  if (count > 0) {
+    return GeminiClient.isEnabled()
+      ? `Séparation Gemini OK — ${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}.`
+      : `Séparation locale — ${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}.`;
+  }
+  return GeminiClient.isEnabled()
+    ? "Séparation effectuée — aucune action détectée, saisissez-les manuellement si besoin."
+    : "Séparation locale — aucune action détectée.";
 }
 
 function formatDisplayDate(iso) {
@@ -160,6 +169,9 @@ async function showImportModal(weekly) {
 
   if (!parsed.length) {
     hideImportModal();
+    alert(
+      "Aucune action détectée dans ce CR.\n\nVérifiez le champ « Actions / prochaines étapes » ou relancez l'analyse après avoir collé le CR complet."
+    );
     return false;
   }
 
@@ -408,11 +420,11 @@ function renderWeeklies() {
         }
         <div class="weekly-section">
           <h3>Ce qu'il s'est dit</h3>
-          <p>${escHtml(w.notes)}</p>
+          <div class="markdown-body">${renderMd(w.notes)}</div>
         </div>
         ${
           w.actions
-            ? `<div class="weekly-section"><h3>Actions / prochaines étapes</h3><p>${escHtml(w.actions)}</p>${importBtn}</div>`
+            ? `<div class="weekly-section"><h3>Actions / prochaines étapes</h3><div class="markdown-body markdown-actions">${renderMd(w.actions)}</div>${importBtn}</div>`
             : ""
         }
       </article>

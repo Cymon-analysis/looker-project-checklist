@@ -45,13 +45,25 @@
     return extractJson(text);
   }
 
+  function normalizeActionsField(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+        .map((a) => (a.match(/^[-*•–—]\s+/) ? a : `- ${a}`))
+        .join("\n");
+    }
+    return String(value || "").trim();
+  }
+
   function heuristicSplit(rawText) {
     const text = String(rawText || "").trim();
     if (!text) return { notes: "", actions: "" };
 
     const patterns = [
-      /\n(?:#{1,3}\s*)?(?:actions?|action items?|prochaines étapes|next steps|à faire|todo)\s*:?\s*\n/i,
-      /\n(?:[-*]\s*)?(?:actions?|prochaines étapes)\s*:?\s*\n/i,
+      /\n(?:#{1,3}\s*)?(?:actions?|action items?|prochaines étapes|next steps|à faire|todos?|tâches?)\s*:?\s*\n/i,
+      /\n(?:[-*]\s*)?(?:actions?|prochaines étapes|à faire)\s*:?\s*\n/i,
+      /\n(?:#{1,3}\s*)?(?:actions?|prochaines étapes)\s*$/im,
     ];
 
     for (const pattern of patterns) {
@@ -59,12 +71,58 @@
       if (match && match.index != null) {
         return {
           notes: text.slice(0, match.index).trim(),
-          actions: text.slice(match.index + match[0].length).trim(),
+          actions: normalizeActionsField(text.slice(match.index + match[0].length).trim()),
         };
       }
     }
 
+    const actionLines = text
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => {
+        if (!line) return false;
+        if (/^[-*•–—]\s+/.test(line)) return true;
+        if (/^\d+[.)]\s+/.test(line)) return true;
+        return /^(action|todo|à faire|prochaine étape)\s*:/i.test(line);
+      });
+
+    if (actionLines.length >= 2) {
+      const actionSet = new Set(actionLines);
+      const notes = text
+        .split(/\n+/)
+        .filter((line) => !actionSet.has(line.trim()))
+        .join("\n")
+        .trim();
+      return {
+        notes,
+        actions: normalizeActionsField(actionLines),
+      };
+    }
+
     return { notes: text, actions: "" };
+  }
+
+  async function extractActionsFromText(sourceText) {
+    const source = String(sourceText || "").trim();
+    if (!source) return "";
+
+    const systemPrompt = `Tu extrais les actions et prochaines étapes d'un compte-rendu de réunion en français.
+Inclus les engagements explicites ET implicites :
+- formulations du type "X va…", "il faut…", "à valider", "prochaine étape", "d'ici la semaine prochaine"
+- puces ou numéros listant des tâches
+- décisions qui impliquent une action concrète
+
+Une action par ligne, format liste markdown avec tiret (- ).
+Formulation courte, actionnable, à l'infinitif ou à l'impératif.
+Si vraiment aucune action, renvoie {"actions":""}.
+Réponds UNIQUEMENT en JSON: {"actions":"..."}`;
+
+    try {
+      const result = await generateJson(systemPrompt, source);
+      return normalizeActionsField(result.actions);
+    } catch {
+      return "";
+    }
   }
 
   async function splitWeeklyText(rawText) {
@@ -73,21 +131,35 @@
 
     if (!isEnabled()) return heuristicSplit(text);
 
-    const systemPrompt = `Tu es un assistant expert en comptes-rendus de réunion en français.
+    const systemPrompt = `Tu es un assistant expert en comptes-rendus de réunion en français (projet data / Looker).
 À partir du texte brut d'une weekly, sépare le contenu en deux champs JSON:
 
-- "notes": tout ce qui s'est dit (contexte, discussion, décisions, points abordés, risques, arbitrages). N'inclus PAS les actions à mener.
-- "actions": uniquement les actions concrètes et prochaines étapes. Une action par ligne dans le texte (puces ou numérotation acceptées). Formulation claire et actionnable.
+- "notes": tout ce qui s'est dit (contexte, discussion, décisions, points abordés, risques, arbitrages).
+  Formate en Markdown lisible : titres ## ou ###, listes à puces, **gras** pour les décisions importantes.
+  N'inclus PAS les actions à mener dans ce champ.
+- "actions": toutes les actions concrètes et prochaines étapes, y compris implicites
+  ("Simon va…", "il faut…", "à faire", engagements, tâches en fin de CR).
+  Une action par ligne, format liste markdown avec tiret (- ).
+  Formulation courte, actionnable.
 
-Si le texte ne contient aucune action explicite, renvoie "actions" vide.
+Si le texte ne contient vraiment aucune action, renvoie "actions" vide.
 Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
 
     try {
       const result = await generateJson(systemPrompt, text);
-      return {
-        notes: String(result.notes || "").trim(),
-        actions: String(result.actions || "").trim(),
-      };
+      let notes = String(result.notes || "").trim();
+      let actions = normalizeActionsField(result.actions);
+
+      if (!actions) {
+        actions = await extractActionsFromText(`${notes}\n\n${text}`);
+      }
+      if (!actions) {
+        const fallback = heuristicSplit(text);
+        if (!notes) notes = fallback.notes;
+        actions = fallback.actions || "";
+      }
+
+      return { notes, actions };
     } catch {
       return heuristicSplit(text);
     }
@@ -130,6 +202,7 @@ Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
     }));
 
     const systemPrompt = `Tu analyses des actions issues d'un compte-rendu weekly (projet Looker / data).
+Le texte peut être une liste markdown (lignes commençant par - ou numérotées). Extrais CHAQUE ligne/action distincte.
 Compare chaque action avec les todos existantes et la checklist, même si la formulation diffère (synonymes, abréviations, ordre des mots).
 
 Todos existantes:
@@ -158,9 +231,13 @@ Réponds UNIQUEMENT en JSON: {"items":[...]}`;
 
     try {
       const result = await generateJson(systemPrompt, text);
-      const items = Array.isArray(result.items) ? result.items : [];
-      if (!items.length) return window.ActionMatcher.analyzeActions(text, catalogs);
-      return items.map(normalizeGeminiItem).filter((i) => i.text.length >= 3);
+      let items = Array.isArray(result.items) ? result.items : [];
+      if (!items.length && Array.isArray(result.actions)) {
+        items = result.actions.map((action) => ({ text: action, status: "new" }));
+      }
+      const normalized = items.map(normalizeGeminiItem).filter((i) => i.text.length >= 3);
+      if (!normalized.length) return window.ActionMatcher.analyzeActions(text, catalogs);
+      return normalized;
     } catch {
       return window.ActionMatcher.analyzeActions(text, catalogs);
     }
