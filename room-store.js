@@ -45,26 +45,52 @@
     return merged;
   }
 
-  function mergeTodos(a, b) {
-    const map = new Map();
-    [...(a || []), ...(b || [])].forEach((entry) => {
-      const existing = map.get(entry.id);
-      if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
-        map.set(entry.id, entry);
+  function mergeTodos(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0) {
+    const localList = a || [];
+    const remoteList = b || [];
+    const localMap = new Map(localList.map((entry) => [entry.id, entry]));
+    const remoteMap = new Map(remoteList.map((entry) => [entry.id, entry]));
+    const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
+    const localWins = (localRoomUpdatedAt || 0) >= (remoteRoomUpdatedAt || 0);
+    const result = [];
+
+    for (const id of allIds) {
+      const local = localMap.get(id);
+      const remote = remoteMap.get(id);
+      if (local && remote) {
+        result.push((local.updatedAt || 0) >= (remote.updatedAt || 0) ? local : remote);
+      } else if (local && !remote) {
+        if (localWins) result.push(local);
+      } else if (!local && remote) {
+        if (!localWins) result.push(remote);
       }
-    });
-    return [...map.values()].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
+    }
+
+    return result.sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
   }
 
-  function mergeWeeklies(a, b) {
-    const map = new Map();
-    [...(a || []), ...(b || [])].forEach((entry) => {
-      const existing = map.get(entry.id);
-      if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
-        map.set(entry.id, entry);
+  function mergeWeeklies(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0) {
+    const localList = a || [];
+    const remoteList = b || [];
+    const localMap = new Map(localList.map((entry) => [entry.id, entry]));
+    const remoteMap = new Map(remoteList.map((entry) => [entry.id, entry]));
+    const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
+    const localWins = (localRoomUpdatedAt || 0) >= (remoteRoomUpdatedAt || 0);
+    const result = [];
+
+    for (const id of allIds) {
+      const local = localMap.get(id);
+      const remote = remoteMap.get(id);
+      if (local && remote) {
+        result.push((local.updatedAt || 0) >= (remote.updatedAt || 0) ? local : remote);
+      } else if (local && !remote) {
+        if (localWins) result.push(local);
+      } else if (!local && remote) {
+        if (!localWins) result.push(remote);
       }
-    });
-    return [...map.values()].sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    }
+
+    return result.sort((x, y) => String(y.date).localeCompare(String(x.date)));
   }
 
   function normalizeState(raw) {
@@ -96,8 +122,8 @@
     const merged = normalizeState(remote);
 
     merged.checks = mergeChecks(l.checks, r.checks);
-    merged.weeklies = mergeWeeklies(l.weeklies, r.weeklies);
-    merged.todos = mergeTodos(l.todos, r.todos);
+    merged.weeklies = mergeWeeklies(l.weeklies, r.weeklies, l.updatedAt, r.updatedAt);
+    merged.todos = mergeTodos(l.todos, r.todos, l.updatedAt, r.updatedAt);
 
     if ((l.roadmap.updatedAt || 0) >= (r.roadmap.updatedAt || 0)) {
       merged.roadmap = { ...l.roadmap };
@@ -377,6 +403,7 @@
     startPolling(ms) {
       if (!this.syncEnabled || this.pollTimer) return;
       this.pollTimer = setInterval(() => {
+        if (this.saving) return;
         this.fetchRemote();
       }, ms);
     }

@@ -12,6 +12,10 @@ let importAnalysis = [];
 let importUsedGemini = false;
 let pasteAnalyzeTimer = null;
 let isAnalyzingPaste = false;
+let pendingDeleteId = null;
+let isDeleting = false;
+
+const APP_BUILD = "20250629-3";
 
 function setGeminiStatus(kind, message) {
   const el = document.getElementById("geminiStatus");
@@ -369,14 +373,48 @@ async function saveWeeklyFromForm(e) {
   });
 }
 
-function deleteWeekly(id) {
-  if (!confirm("Supprimer ce compte-rendu ?")) return;
-  if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
-  store.patch((state) => {
-    state.weeklies = (state.weeklies || []).filter((w) => w.id !== id);
-  });
-  if (editingId === id) hideForm();
-  if (syncEnabled) store.queueSave().then(() => setSyncStatus("synced", "Synchronisé"));
+function askDeleteWeekly(id) {
+  if (isDeleting) return;
+  const weekly = getWeeklies().find((w) => w.id === id);
+  if (!weekly) return;
+  pendingDeleteId = id;
+  document.getElementById("deleteModalText").textContent =
+    `« ${weekly.title} » sera supprimé définitivement.`;
+  document.getElementById("deleteModal").classList.remove("hidden");
+}
+
+function hideDeleteModal() {
+  pendingDeleteId = null;
+  document.getElementById("deleteModal").classList.add("hidden");
+}
+
+async function confirmDeleteWeekly() {
+  const id = pendingDeleteId;
+  if (!id || isDeleting) return;
+
+  isDeleting = true;
+  hideDeleteModal();
+  document.getElementById("deleteConfirmBtn").disabled = true;
+
+  try {
+    if (syncEnabled) setSyncStatus("connecting", "Suppression…");
+    store.patch(
+      (state) => {
+        state.weeklies = (state.weeklies || []).filter((w) => w.id !== id);
+      },
+      { save: false }
+    );
+    if (editingId === id) hideForm();
+    if (syncEnabled) {
+      await store.queueSave();
+      setSyncStatus("synced", "Synchronisé");
+    }
+  } catch {
+    if (syncEnabled) setSyncStatus("error", "Erreur suppression");
+  } finally {
+    isDeleting = false;
+    document.getElementById("deleteConfirmBtn").disabled = false;
+  }
 }
 
 function renderWeeklies() {
@@ -431,21 +469,26 @@ function renderWeeklies() {
     `;
     })
     .join("");
+}
 
-  container.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const weekly = list.find((w) => w.id === btn.dataset.edit);
-      if (weekly) showForm(weekly);
-    });
-  });
+function handleWeeklyListClick(e) {
+  const editBtn = e.target.closest("[data-edit]");
+  if (editBtn) {
+    const weekly = getWeeklies().find((w) => w.id === editBtn.dataset.edit);
+    if (weekly) showForm(weekly);
+    return;
+  }
 
-  container.querySelectorAll("[data-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteWeekly(btn.dataset.delete));
-  });
+  const deleteBtn = e.target.closest("[data-delete]");
+  if (deleteBtn) {
+    askDeleteWeekly(deleteBtn.dataset.delete);
+    return;
+  }
 
-  container.querySelectorAll("[data-import]").forEach((btn) => {
-    btn.addEventListener("click", () => promptImportForWeekly(btn.dataset.import));
-  });
+  const importBtn = e.target.closest("[data-import]");
+  if (importBtn) {
+    promptImportForWeekly(importBtn.dataset.import);
+  }
 }
 
 function copyShareLink() {
@@ -461,7 +504,10 @@ function copyShareLink() {
 
 document.getElementById("roomLabel").value = roomId;
 PageUtils.setupPageNav(roomId, "weeklies.html");
-document.getElementById("footer").textContent = `CR Weekly — salle « ${roomId} »`;
+document.getElementById("footer").textContent =
+  `CR Weekly — salle « ${roomId} » — build ${APP_BUILD}`;
+
+document.getElementById("weeklyList").addEventListener("click", handleWeeklyListClick);
 
 document.getElementById("addWeeklyBtn").addEventListener("click", () => showForm(null));
 document.getElementById("cancelWeeklyBtn").addEventListener("click", hideForm);
@@ -478,6 +524,8 @@ document.getElementById("importSelectAll").addEventListener("click", () => setAl
 document.getElementById("importSelectNone").addEventListener("click", () => setAllImportChecks(false));
 document.getElementById("importConfirmBtn").addEventListener("click", confirmImport);
 document.getElementById("importSkipBtn").addEventListener("click", skipImport);
+document.getElementById("deleteCancelBtn").addEventListener("click", hideDeleteModal);
+document.getElementById("deleteConfirmBtn").addEventListener("click", confirmDeleteWeekly);
 
 store.subscribe(() => renderWeeklies());
 
