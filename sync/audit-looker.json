@@ -1,6 +1,12 @@
 {
   "projectName": "",
   "reviewer": "",
-  "checks": {},
-  "updatedAt": 0
+  "checks": {
+    "infra-01": {
+      "checked": true,
+      "by": "Simon",
+      "at": 1782756105452
+    }
+  },
+  "updatedAt": 1782756105467
 }
