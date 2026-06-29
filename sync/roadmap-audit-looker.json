@@ -2,7 +2,7 @@
   "layout": {
     "project-mgmt": {
       "startDay": 0,
-      "span": 2
+      "span": 3
     },
     "infra": {
       "startDay": 1,
@@ -34,5 +34,5 @@
     }
   },
   "startDate": "2026-06-29",
-  "updatedAt": 1782756996658
+  "updatedAt": 1782759866675
 }
