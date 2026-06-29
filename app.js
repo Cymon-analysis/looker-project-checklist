@@ -1,30 +1,18 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import {
-  getFirestore,
-  doc,
-  onSnapshot,
-  setDoc,
-  serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
 const { PHASES, ITEMS, PRIORITY_LABEL, PHASE_COLORS } = window.CHECKLIST_DATA;
+const SYNC = window.SYNC_CONFIG || { enabled: false };
 const PRENOM_KEY = "looker-checklist-prenom";
-const LOCAL_FALLBACK_KEY = "looker-checklist-local-v2";
+const POLL_MS = 3000;
 
 let roomId = getRoomId();
 let firstName = localStorage.getItem(PRENOM_KEY) || "";
 let remoteState = { checks: {}, projectName: "", reviewer: "" };
-let firebaseReady = false;
-let firestore = null;
-let roomRef = null;
+let fileSha = null;
 let applyingRemote = false;
 let metaSaveTimer = null;
+let pollTimer = null;
+let saveQueue = Promise.resolve();
 
-const syncEnabled =
-  window.FIREBASE_ENABLED === true &&
-  window.FIREBASE_CONFIG &&
-  window.FIREBASE_CONFIG.apiKey &&
-  window.FIREBASE_CONFIG.projectId;
+const syncEnabled = SYNC.enabled && SYNC.token;
 
 function getRoomId() {
   const params = new URLSearchParams(window.location.search);
@@ -32,10 +20,13 @@ function getRoomId() {
   if (!room) {
     room = "audit-looker";
     params.set("room", room);
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, "", newUrl);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   }
   return room.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
+}
+
+function syncPath() {
+  return `sync/${roomId}.json`;
 }
 
 function escHtml(s) {
@@ -46,8 +37,7 @@ function escHtml(s) {
 
 function formatDate(ts) {
   if (!ts) return "";
-  const d = new Date(ts);
-  return d.toLocaleString("fr-FR", {
+  return new Date(ts).toLocaleString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -97,114 +87,102 @@ function attributionHtml(check) {
   return `<p class="item-attribution unchecked">Décoché par <strong>${escHtml(check.by)}</strong>${when ? ` — ${when}` : ""}</p>`;
 }
 
-async function initFirebase() {
+function applyRemoteData(data) {
+  applyingRemote = true;
+  remoteState = {
+    checks: data.checks || {},
+    projectName: data.projectName || "",
+    reviewer: data.reviewer || "",
+  };
+  document.getElementById("projectName").value = remoteState.projectName;
+  document.getElementById("reviewer").value = remoteState.reviewer;
+  applyingRemote = false;
+  render();
+}
+
+async function fetchRemote() {
+  if (!syncEnabled) return;
+
+  try {
+    const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${syncPath()}?ref=${SYNC.branch}`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${SYNC.token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+    if (res.status === 404) {
+      fileSha = null;
+      remoteState = { checks: {}, projectName: "", reviewer: "" };
+      render();
+      return;
+    }
+
+    if (!res.ok) throw new Error("fetch failed");
+
+    const meta = await res.json();
+    fileSha = meta.sha;
+    const json = JSON.parse(atob(meta.content.replace(/\n/g, "")));
+    applyRemoteData(json);
+    setSyncStatus("synced", "Synchronisé");
+  } catch {
+    setSyncStatus("error", "Erreur sync");
+  }
+}
+
+async function persistRemote() {
+  if (!syncEnabled) return;
+
+  const payload = {
+    projectName: remoteState.projectName,
+    reviewer: remoteState.reviewer,
+    checks: remoteState.checks,
+    updatedAt: Date.now(),
+  };
+
+  const body = {
+    message: `Sync checklist ${roomId} by ${firstName || "unknown"}`,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
+    branch: SYNC.branch,
+  };
+  if (fileSha) body.sha = fileSha;
+
+  const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${syncPath()}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${SYNC.token}`,
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) throw new Error("save failed");
+
+  const data = await res.json();
+  fileSha = data.content?.sha || fileSha;
+  setSyncStatus("synced", "Synchronisé");
+}
+
+function queueSave(fn) {
+  saveQueue = saveQueue.then(fn).catch(() => setSyncStatus("error", "Erreur enregistrement"));
+}
+
+async function initSync() {
   if (!syncEnabled) {
-    setSyncStatus("offline", "Local uniquement");
+    setSyncStatus("offline", "Sync non configurée");
     document.getElementById("syncBanner").classList.remove("hidden");
-    loadLocalFallback();
     return;
   }
 
   document.getElementById("syncBanner").classList.add("hidden");
   setSyncStatus("connecting", "Connexion…");
-
-  try {
-    const app = initializeApp(window.FIREBASE_CONFIG);
-    firestore = getFirestore(app);
-    roomRef = doc(firestore, "checklists", roomId);
-    firebaseReady = true;
-
-    onSnapshot(
-      roomRef,
-      (snap) => {
-        applyingRemote = true;
-        if (snap.exists()) {
-          const data = snap.data();
-          remoteState = {
-            checks: data.checks || {},
-            projectName: data.projectName || "",
-            reviewer: data.reviewer || "",
-          };
-        } else {
-          remoteState = { checks: {}, projectName: "", reviewer: "" };
-        }
-        syncMetaFieldsFromRemote();
-        applyingRemote = false;
-        setSyncStatus("synced", "Synchronisé");
-        render();
-      },
-      () => {
-        setSyncStatus("error", "Erreur sync");
-        loadLocalFallback();
-      }
-    );
-  } catch {
-    setSyncStatus("error", "Erreur Firebase");
-    document.getElementById("syncBanner").classList.remove("hidden");
-    loadLocalFallback();
-  }
-}
-
-function loadLocalFallback() {
-  try {
-    const local = JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY));
-    if (local && local.roomId === roomId) {
-      remoteState = {
-        checks: local.checks || {},
-        projectName: local.projectName || "",
-        reviewer: local.reviewer || "",
-      };
-      syncMetaFieldsFromRemote();
-      render();
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-function saveLocalFallback() {
-  localStorage.setItem(
-    LOCAL_FALLBACK_KEY,
-    JSON.stringify({
-      roomId,
-      checks: remoteState.checks,
-      projectName: remoteState.projectName,
-      reviewer: remoteState.reviewer,
-    })
-  );
-}
-
-function syncMetaFieldsFromRemote() {
-  document.getElementById("projectName").value = remoteState.projectName || "";
-  document.getElementById("reviewer").value = remoteState.reviewer || "";
-}
-
-async function persistMeta() {
-  if (applyingRemote) return;
-  remoteState.projectName = document.getElementById("projectName").value;
-  remoteState.reviewer = document.getElementById("reviewer").value;
-  saveLocalFallback();
-
-  if (!firebaseReady || !roomRef) return;
-
-  try {
-    await setDoc(
-      roomRef,
-      {
-        projectName: remoteState.projectName,
-        reviewer: remoteState.reviewer,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  } catch {
-    setSyncStatus("error", "Erreur enregistrement");
-  }
-}
-
-function scheduleMetaSave() {
-  clearTimeout(metaSaveTimer);
-  metaSaveTimer = setTimeout(persistMeta, 600);
+  await fetchRemote();
+  pollTimer = setInterval(fetchRemote, POLL_MS);
 }
 
 async function toggleCheck(id, val) {
@@ -214,32 +192,32 @@ async function toggleCheck(id, val) {
     return;
   }
 
-  const entry = {
-    checked: val,
-    by: firstName,
-    at: Date.now(),
-  };
-
-  remoteState.checks[id] = entry;
-  saveLocalFallback();
+  remoteState.checks[id] = { checked: val, by: firstName, at: Date.now() };
   render();
 
-  if (!firebaseReady || !roomRef) return;
+  if (!syncEnabled) return;
 
   setSyncStatus("connecting", "Enregistrement…");
-  try {
-    await setDoc(
-      roomRef,
-      {
-        checks: { [id]: entry },
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-    setSyncStatus("synced", "Synchronisé");
-  } catch {
-    setSyncStatus("error", "Erreur enregistrement");
-  }
+  queueSave(async () => {
+    await persistRemote();
+    await fetchRemote();
+  });
+}
+
+function scheduleMetaSave() {
+  if (applyingRemote) return;
+  clearTimeout(metaSaveTimer);
+  metaSaveTimer = setTimeout(() => {
+    remoteState.projectName = document.getElementById("projectName").value;
+    remoteState.reviewer = document.getElementById("reviewer").value;
+    if (syncEnabled) {
+      setSyncStatus("connecting", "Enregistrement…");
+      queueSave(async () => {
+        await persistRemote();
+        await fetchRemote();
+      });
+    }
+  }, 600);
 }
 
 function getFilteredItems() {
@@ -252,13 +230,7 @@ function getFilteredItems() {
     if (phase !== "all" && item.phaseId !== phase) return false;
     if (hideCompleted && isChecked(item.id)) return false;
     if (q) {
-      const hay = (
-        item.title +
-        item.category +
-        item.description +
-        item.verify +
-        item.setup
-      ).toLowerCase();
+      const hay = `${item.title}${item.category}${item.description}${item.verify}${item.setup}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -296,8 +268,7 @@ function renderStats() {
   document.getElementById("progressLeft").textContent = `${done} validés`;
   document.getElementById("progressRight").textContent = `${total - done} restants`;
 
-  const bar = document.getElementById("progressBar");
-  bar.innerHTML = PHASES.map((p) => {
+  document.getElementById("progressBar").innerHTML = PHASES.map((p) => {
     const { done: pd } = phaseProgress(p.id);
     const w = total > 0 ? (pd / total) * 100 : 0;
     return `<div class="progress-seg" style="width:${w}%;background:${PHASE_COLORS[p.id]}"></div>`;
@@ -306,9 +277,9 @@ function renderStats() {
   const callout = document.getElementById("callout");
   if (criticalDone < critical.length) {
     const rem = critical.length - criticalDone;
-    callout.innerHTML = `<div class="callout callout-warning"><div class="callout-title">Points critiques en attente</div>${rem} point${rem > 1 ? "s" : ""} critique${rem > 1 ? "s" : ""} restant${rem > 1 ? "s" : ""} sur ${critical.length}. Priorisez-les avant le go-live.</div>`;
+    callout.innerHTML = `<div class="callout callout-warning"><div class="callout-title">Points critiques en attente</div>${rem} point${rem > 1 ? "s" : ""} critique${rem > 1 ? "s" : ""} restant${rem > 1 ? "s" : ""} sur ${critical.length}.</div>`;
   } else if (done === total) {
-    callout.innerHTML = `<div class="callout callout-success"><div class="callout-title">Checklist complète</div>Tous les points de contrôle sont validés. Planifiez une revue trimestrielle pour maintenir la conformité.</div>`;
+    callout.innerHTML = `<div class="callout callout-success"><div class="callout-title">Checklist complète</div>Tous les points de contrôle sont validés.</div>`;
   } else {
     callout.innerHTML = "";
   }
@@ -341,10 +312,10 @@ function renderPhases() {
       <div class="phase-body"></div>
     `;
 
-    const header = phaseEl.querySelector(".phase-header");
-    header.addEventListener("click", () => {
+    phaseEl.querySelector(".phase-header").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
       phaseEl.classList.toggle("open");
-      header.setAttribute("aria-expanded", phaseEl.classList.contains("open"));
+      btn.setAttribute("aria-expanded", phaseEl.classList.contains("open"));
     });
 
     const body = phaseEl.querySelector(".phase-body");
@@ -416,68 +387,55 @@ function populatePhaseFilter() {
 }
 
 function copyShareLink() {
-  const url = window.location.href;
-  navigator.clipboard.writeText(url).then(() => {
+  navigator.clipboard.writeText(window.location.href).then(() => {
     const btn = document.getElementById("shareBtn");
     const prev = btn.textContent;
     btn.textContent = "Lien copié !";
-    setTimeout(() => {
-      btn.textContent = prev;
-    }, 2000);
+    setTimeout(() => { btn.textContent = prev; }, 2000);
   });
 }
 
 function setupUI() {
   document.getElementById("roomLabel").value = roomId;
   document.getElementById("firstName").value = firstName;
-  document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points de contrôle — salle « ${roomId} »`;
+  document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points — salle « ${roomId} »`;
 
   populatePhaseFilter();
-
   if (!firstName) showNameModal();
 
   document.getElementById("modalSaveBtn").addEventListener("click", () => {
-    const name = document.getElementById("modalFirstName").value;
-    if (saveFirstName(name)) hideNameModal();
+    if (saveFirstName(document.getElementById("modalFirstName").value)) hideNameModal();
     else document.getElementById("modalFirstName").focus();
   });
-
   document.getElementById("modalFirstName").addEventListener("keydown", (e) => {
     if (e.key === "Enter") document.getElementById("modalSaveBtn").click();
   });
-
-  document.getElementById("firstName").addEventListener("change", (e) => {
-    saveFirstName(e.target.value);
-  });
-
+  document.getElementById("firstName").addEventListener("change", (e) => saveFirstName(e.target.value));
   document.getElementById("projectName").addEventListener("input", scheduleMetaSave);
   document.getElementById("reviewer").addEventListener("input", scheduleMetaSave);
-
   ["search", "priorityFilter", "phaseFilter", "hideCompleted"].forEach((id) => {
-    const el = document.getElementById(id);
-    el.addEventListener(id === "hideCompleted" ? "change" : "input", render);
-    if (id !== "search") el.addEventListener("change", render);
+    document.getElementById(id).addEventListener(id === "hideCompleted" ? "change" : "input", render);
+    if (id !== "search") document.getElementById(id).addEventListener("change", render);
   });
-
   document.getElementById("shareBtn").addEventListener("click", copyShareLink);
-
-  document.getElementById("resetBtn").addEventListener("click", async () => {
+  document.getElementById("resetBtn").addEventListener("click", () => {
     if (!confirm("Réinitialiser toutes les coches de cet espace partagé ?")) return;
     if (!firstName && !saveFirstName(prompt("Votre prénom :") || "")) return;
-
     const cleared = {};
     ITEMS.forEach((item) => {
       cleared[item.id] = { checked: false, by: firstName, at: Date.now() };
     });
     remoteState.checks = cleared;
-    saveLocalFallback();
     render();
-
-    if (firebaseReady && roomRef) {
-      await setDoc(roomRef, { checks: cleared, updatedAt: serverTimestamp() }, { merge: true });
+    if (syncEnabled) {
+      queueSave(async () => {
+        await persistRemote();
+        await fetchRemote();
+      });
     }
   });
 }
 
 setupUI();
-initFirebase().then(() => render());
+initSync();
+render();

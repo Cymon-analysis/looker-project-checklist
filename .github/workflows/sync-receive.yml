@@ -1,0 +1,38 @@
+name: Sync checklist state
+
+on:
+  repository_dispatch:
+    types: [checklist-sync]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply sync payload
+        env:
+          ROOM: ${{ github.event.client_payload.room }}
+          PAYLOAD: ${{ github.event.client_payload.payload }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const room = (process.env.ROOM || "audit-looker").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
+          const payload = JSON.parse(Buffer.from(process.env.PAYLOAD, "base64").toString("utf8"));
+          const file = path.join("sync", `${room}.json`);
+          fs.mkdirSync("sync", { recursive: true });
+          fs.writeFileSync(file, JSON.stringify(payload, null, 2) + "\n");
+          NODE
+
+      - name: Commit and push
+        run: |
+          git config user.name "looker-checklist-sync"
+          git config user.email "looker-checklist-sync@users.noreply.github.com"
+          git add sync/
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "Sync checklist state (${{ github.event.client_payload.room }})"
+          git push
