@@ -15,7 +15,7 @@ let isAnalyzingPaste = false;
 let pendingDeleteId = null;
 let isDeleting = false;
 
-const APP_BUILD = "20250629-4";
+const APP_BUILD = "20250629-5";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -111,15 +111,18 @@ async function ensureWeeklyActions(weekly) {
 function formatSplitStatus(split) {
   const count = ActionMatcher.parseActionsText(split.actions).length;
   if (split.error && !split.usedGemini) {
-    return `Gemini indisponible (${split.error}) — séparation locale utilisée.`;
+    return `${split.error} — séparation locale utilisée.`;
   }
+  const modelInfo = GeminiClient.getLastModelUsed()
+    ? ` (${GeminiClient.getLastModelUsed()})`
+    : "";
   if (count > 0) {
     return split.usedGemini
-      ? `Gemini OK — CR structuré, ${count} action${count > 1 ? "s" : ""} extraite${count > 1 ? "s" : ""}.`
+      ? `Gemini OK${modelInfo} — CR structuré, ${count} action${count > 1 ? "s" : ""} extraite${count > 1 ? "s" : ""}.`
       : `Séparation locale — ${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}.`;
   }
   return split.usedGemini
-    ? "CR structuré — aucune action trouvée. Complétez le champ actions ou recollez le CR."
+    ? `CR structuré${modelInfo} — aucune action trouvée. Complétez le champ actions ou recollez le CR.`
     : "Séparation locale — aucune action détectée.";
 }
 
@@ -452,6 +455,8 @@ async function confirmDeleteWeekly() {
     if (syncEnabled) setSyncStatus("connecting", "Suppression…");
     store.patch(
       (state) => {
+        state.deletedWeeklyIds = state.deletedWeeklyIds || {};
+        state.deletedWeeklyIds[id] = Date.now();
         state.weeklies = (state.weeklies || []).filter((w) => w.id !== id);
       },
       { save: false }

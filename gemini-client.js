@@ -1,7 +1,15 @@
 (function () {
-  const CFG = () => window.GEMINI_CONFIG || { enabled: false, apiKey: "", model: "gemini-2.0-flash" };
+  const CFG = () => window.GEMINI_CONFIG || { enabled: false, apiKey: "", model: "gemini-2.5-flash-lite" };
+
+  const MODEL_FALLBACKS = [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash",
+  ];
 
   let lastError = null;
+  let lastModelUsed = null;
 
   function isEnabled() {
     const c = CFG();
@@ -10,6 +18,28 @@
 
   function getLastError() {
     return lastError;
+  }
+
+  function getLastModelUsed() {
+    return lastModelUsed;
+  }
+
+  function modelCandidates() {
+    const preferred = CFG().model || MODEL_FALLBACKS[0];
+    return [preferred, ...MODEL_FALLBACKS].filter((m, i, arr) => m && arr.indexOf(m) === i);
+  }
+
+  function formatApiError(status, body) {
+    if (status === 429) return "Quota API dépassé — réessayez dans quelques minutes";
+    if (status === 403) return "Clé API refusée — vérifiez GEMINI_API_KEY";
+    if (status === 503) return "Modèle saturé — nouvel essai automatique";
+    if (status === 404) return "Modèle indisponible";
+    try {
+      const parsed = JSON.parse(body);
+      return parsed?.error?.message?.slice(0, 120) || `HTTP ${status}`;
+    } catch {
+      return `HTTP ${status}`;
+    }
   }
 
   function extractJson(text) {
@@ -23,37 +53,50 @@
     const c = CFG();
     if (!isEnabled()) throw new Error("gemini_disabled");
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${c.model}:generateContent?key=${encodeURIComponent(c.apiKey)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: `${systemPrompt}\n\n---\n\n${userContent}` }],
+    let lastBody = "";
+    let lastStatus = 0;
+
+    for (const model of modelCandidates()) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(c.apiKey)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: `${systemPrompt}\n\n---\n\n${userContent}` }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.1,
           },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.1,
-        },
-      }),
-    });
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.text();
-      lastError = `HTTP ${res.status}`;
-      throw new Error(`gemini_http_${res.status}: ${err.slice(0, 200)}`);
+      if (!res.ok) {
+        lastStatus = res.status;
+        lastBody = await res.text();
+        if (res.status === 429 || res.status === 503 || res.status === 404) {
+          continue;
+        }
+        lastError = formatApiError(res.status, lastBody);
+        throw new Error(`gemini_http_${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        lastError = "Réponse vide";
+        continue;
+      }
+      lastError = null;
+      lastModelUsed = model;
+      return extractJson(text);
     }
 
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      lastError = "Réponse vide";
-      throw new Error("gemini_empty_response");
-    }
-    lastError = null;
-    return extractJson(text);
+    lastError = formatApiError(lastStatus, lastBody);
+    throw new Error(`gemini_http_${lastStatus || "all_failed"}`);
   }
 
   function normalizeActionsField(value) {
@@ -203,12 +246,12 @@ Réponds UNIQUEMENT en JSON: {"notesMarkdown":"...","actions":["..."]}`;
       }
 
       return { notes, actions, usedGemini: true, error: null };
-    } catch (err) {
+    } catch {
       const fallback = heuristicSplit(text);
       return {
         ...fallback,
         usedGemini: false,
-        error: lastError || err.message,
+        error: lastError || "Erreur API Gemini",
       };
     }
   }
@@ -311,6 +354,7 @@ Réponds UNIQUEMENT en JSON: {"items":[...]}`;
   window.GeminiClient = {
     isEnabled,
     getLastError,
+    getLastModelUsed,
     splitWeeklyText,
     analyzeActions,
     extractActionsFromText,

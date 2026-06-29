@@ -31,6 +31,8 @@
       },
       weeklies: [],
       todos: [],
+      deletedWeeklyIds: {},
+      deletedTodoIds: {},
       openPhases: ["infra", "lookml"],
       updatedAt: 0,
     };
@@ -45,9 +47,27 @@
     return merged;
   }
 
-  function mergeTodos(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0) {
-    const localList = a || [];
-    const remoteList = b || [];
+  function mergeDeletedMaps(a, b) {
+    const merged = { ...(a || {}), ...(b || {}) };
+    Object.keys(merged).forEach((id) => {
+      merged[id] = Math.max(a?.[id] || 0, b?.[id] || 0);
+    });
+    return merged;
+  }
+
+  function applyDeletedFilter(items, deletedMap) {
+    const deleted = deletedMap || {};
+    return (items || []).filter((item) => {
+      const deletedAt = deleted[item.id];
+      if (!deletedAt) return true;
+      return (item.updatedAt || 0) > deletedAt;
+    });
+  }
+
+  function mergeTodos(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0, localDeleted = {}, remoteDeleted = {}) {
+    const deleted = mergeDeletedMaps(localDeleted, remoteDeleted);
+    const localList = applyDeletedFilter(a, deleted);
+    const remoteList = applyDeletedFilter(b, deleted);
     const localMap = new Map(localList.map((entry) => [entry.id, entry]));
     const remoteMap = new Map(remoteList.map((entry) => [entry.id, entry]));
     const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
@@ -69,9 +89,10 @@
     return result.sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
   }
 
-  function mergeWeeklies(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0) {
-    const localList = a || [];
-    const remoteList = b || [];
+  function mergeWeeklies(a, b, localRoomUpdatedAt = 0, remoteRoomUpdatedAt = 0, localDeleted = {}, remoteDeleted = {}) {
+    const deleted = mergeDeletedMaps(localDeleted, remoteDeleted);
+    const localList = applyDeletedFilter(a, deleted);
+    const remoteList = applyDeletedFilter(b, deleted);
     const localMap = new Map(localList.map((entry) => [entry.id, entry]));
     const remoteMap = new Map(remoteList.map((entry) => [entry.id, entry]));
     const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
@@ -112,6 +133,10 @@
 
     state.weeklies = Array.isArray(raw.weeklies) ? raw.weeklies : [];
     state.todos = Array.isArray(raw.todos) ? raw.todos : [];
+    state.deletedWeeklyIds =
+      raw.deletedWeeklyIds && typeof raw.deletedWeeklyIds === "object" ? raw.deletedWeeklyIds : {};
+    state.deletedTodoIds =
+      raw.deletedTodoIds && typeof raw.deletedTodoIds === "object" ? raw.deletedTodoIds : {};
     state.updatedAt = raw.updatedAt || 0;
     return state;
   }
@@ -122,8 +147,33 @@
     const merged = normalizeState(remote);
 
     merged.checks = mergeChecks(l.checks, r.checks);
-    merged.weeklies = mergeWeeklies(l.weeklies, r.weeklies, l.updatedAt, r.updatedAt);
-    merged.todos = mergeTodos(l.todos, r.todos, l.updatedAt, r.updatedAt);
+    merged.deletedWeeklyIds = mergeDeletedMaps(l.deletedWeeklyIds, r.deletedWeeklyIds);
+    merged.deletedTodoIds = mergeDeletedMaps(l.deletedTodoIds, r.deletedTodoIds);
+
+    if ((l.updatedAt || 0) > (r.updatedAt || 0)) {
+      merged.weeklies = applyDeletedFilter(l.weeklies, merged.deletedWeeklyIds);
+      merged.todos = applyDeletedFilter(l.todos, merged.deletedTodoIds);
+    } else if ((r.updatedAt || 0) > (l.updatedAt || 0)) {
+      merged.weeklies = applyDeletedFilter(r.weeklies, merged.deletedWeeklyIds);
+      merged.todos = applyDeletedFilter(r.todos, merged.deletedTodoIds);
+    } else {
+      merged.weeklies = mergeWeeklies(
+        l.weeklies,
+        r.weeklies,
+        l.updatedAt,
+        r.updatedAt,
+        l.deletedWeeklyIds,
+        r.deletedWeeklyIds
+      );
+      merged.todos = mergeTodos(
+        l.todos,
+        r.todos,
+        l.updatedAt,
+        r.updatedAt,
+        l.deletedTodoIds,
+        r.deletedTodoIds
+      );
+    }
 
     if ((l.roadmap.updatedAt || 0) >= (r.roadmap.updatedAt || 0)) {
       merged.roadmap = { ...l.roadmap };
@@ -218,6 +268,7 @@
       this.saveQueue = Promise.resolve();
       this.pollTimer = null;
       this.saving = false;
+      this.savePending = false;
     }
 
     subscribe(fn) {
@@ -351,6 +402,7 @@
 
       const before = JSON.stringify(this.state);
       if (remoteState) {
+        if (this.savePending || this.saving) return true;
         this.state = mergeStates(this.state, remoteState);
       }
       this.saveLocal();
@@ -369,26 +421,37 @@
     }
 
     queueSave() {
+      this.savePending = true;
       this.saveQueue = this.saveQueue
         .then(() => this.persistRemote())
         .catch(() => {
           this.saving = false;
+          this.savePending = false;
           throw new Error("save failed");
         });
       return this.saveQueue;
     }
 
     async persistRemote() {
-      if (!this.syncEnabled) return;
+      if (!this.syncEnabled) {
+        this.savePending = false;
+        return;
+      }
       this.saving = true;
       const payload = { ...this.state, updatedAt: Date.now() };
-      this.fileSha = await this.githubPut(
-        this.syncPath,
-        payload,
-        this.fileSha,
-        `Sync room ${this.roomId}`
-      );
-      this.saving = false;
+      try {
+        this.fileSha = await this.githubPut(
+          this.syncPath,
+          payload,
+          this.fileSha,
+          `Sync room ${this.roomId}`
+        );
+        this.state.updatedAt = payload.updatedAt;
+        this.saveLocal();
+      } finally {
+        this.saving = false;
+        this.savePending = false;
+      }
     }
 
     async init() {
@@ -403,7 +466,7 @@
     startPolling(ms) {
       if (!this.syncEnabled || this.pollTimer) return;
       this.pollTimer = setInterval(() => {
-        if (this.saving) return;
+        if (this.saving || this.savePending) return;
         this.fetchRemote();
       }, ms);
     }
