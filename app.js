@@ -45,6 +45,34 @@ let metaSaveTimer = null;
 let pollTimer = null;
 let saveQueue = Promise.resolve();
 
+const DEFAULT_OPEN_PHASES = new Set(["infra", "lookml"]);
+let openPhases = loadOpenPhases();
+const openGuides = new Set();
+
+function openPhasesStorageKey() {
+  return `looker-checklist-open-phases-${roomId}`;
+}
+
+function loadOpenPhases() {
+  try {
+    const raw = localStorage.getItem(openPhasesStorageKey());
+    if (raw) return new Set(JSON.parse(raw));
+  } catch {
+    // ignore invalid stored state
+  }
+  return new Set(DEFAULT_OPEN_PHASES);
+}
+
+function saveOpenPhases() {
+  localStorage.setItem(openPhasesStorageKey(), JSON.stringify([...openPhases]));
+}
+
+function togglePhaseOpen(phaseId, isOpen) {
+  if (isOpen) openPhases.add(phaseId);
+  else openPhases.delete(phaseId);
+  saveOpenPhases();
+}
+
 const syncEnabled = SYNC.enabled && SYNC.token;
 
 function getRoomId() {
@@ -338,7 +366,7 @@ function renderPhases() {
     if (phaseItems.length === 0) return;
 
     const { done, total } = phaseProgress(phase.id);
-    const isOpen = phase.id === "infra" || phase.id === "lookml";
+    const isOpen = openPhases.has(phase.id);
     const phaseEl = document.createElement("div");
     phaseEl.className = `phase${isOpen ? " open" : ""}`;
     phaseEl.innerHTML = `
@@ -355,7 +383,9 @@ function renderPhases() {
     phaseEl.querySelector(".phase-header").addEventListener("click", (e) => {
       const btn = e.currentTarget;
       phaseEl.classList.toggle("open");
-      btn.setAttribute("aria-expanded", phaseEl.classList.contains("open"));
+      const expanded = phaseEl.classList.contains("open");
+      btn.setAttribute("aria-expanded", expanded);
+      togglePhaseOpen(phase.id, expanded);
     });
 
     const body = phaseEl.querySelector(".phase-body");
@@ -398,10 +428,19 @@ function renderPhases() {
 
       const guideBtn = itemEl.querySelector(".guide-toggle");
       const guideBody = itemEl.querySelector(".guide-body");
+      const guideOpen = openGuides.has(item.id);
+      if (guideOpen) {
+        guideBtn.classList.add("open");
+        guideBody.classList.add("open");
+        guideBtn.setAttribute("aria-expanded", "true");
+      }
       guideBtn.addEventListener("click", () => {
-        guideBtn.classList.toggle("open");
-        guideBody.classList.toggle("open");
-        guideBtn.setAttribute("aria-expanded", guideBody.classList.contains("open"));
+        const willOpen = !guideBody.classList.contains("open");
+        guideBtn.classList.toggle("open", willOpen);
+        guideBody.classList.toggle("open", willOpen);
+        guideBtn.setAttribute("aria-expanded", willOpen);
+        if (willOpen) openGuides.add(item.id);
+        else openGuides.delete(item.id);
       });
 
       body.appendChild(itemEl);
@@ -441,6 +480,7 @@ function setupUI() {
   const localMeta = loadLocalMeta();
   remoteState.projectName = localMeta.projectName;
   remoteState.reviewer = localMeta.reviewer;
+  openPhases = loadOpenPhases();
   applyProjectFieldsToUI();
   document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points — salle « ${roomId} »`;
 
