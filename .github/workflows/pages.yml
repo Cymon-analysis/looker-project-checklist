@@ -23,9 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate checklist data
-        run: node generate.mjs
-
       - name: Generate Firebase config
         env:
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
