@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checklist Projet Looker et Couche Sémantique</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --surface2: #1e2230;
+      --border: #2a2f3d;
+      --text: #e8eaed;
+      --text2: #9aa0ad;
+      --text3: #6b7280;
+      --accent: #4a8fd4;
+      --accent-hover: #5a9fe4;
+      --critical: #e85d75;
+      --high: #e8913a;
+      --medium: #8a8a96;
+      --success: #4caf7d;
+      --warning: #e8913a;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 20px 48px; }
+    h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 8px; }
+    h2 { font-size: 1.125rem; font-weight: 600; margin: 24px 0 12px; }
+    h3 { font-size: 0.8125rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .subtitle { color: var(--text2); font-size: 0.9375rem; margin-bottom: 24px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 640px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+    label.field-label { display: block; font-size: 0.75rem; color: var(--text3); margin-bottom: 4px; }
+    input[type="text"], select {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+    input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .stat { text-align: center; padding: 12px; }
+    .stat-value { font-size: 1.5rem; font-weight: 600; }
+    .stat-value.success { color: var(--success); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-label { font-size: 0.75rem; color: var(--text3); margin-top: 4px; }
+    .progress-wrap { margin-top: 4px; }
+    .progress-bar {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    .progress-seg { height: 100%; transition: width 0.3s; }
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text3);
+      margin-bottom: 6px;
+    }
+    .callout {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      margin-bottom: 16px;
+      border: 1px solid;
+    }
+    .callout-warning { background: rgba(232,145,58,0.1); border-color: rgba(232,145,58,0.3); color: #f0b87a; }
+    .callout-success { background: rgba(76,175,125,0.1); border-color: rgba(76,175,125,0.3); color: #7dcea0; }
+    .callout-info { background: rgba(74,143,212,0.1); border-color: rgba(74,143,212,0.3); color: #8ab4e8; }
+    .callout-title { font-weight: 600; margin-bottom: 4px; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; cursor: pointer; }
+    .checkbox-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { background: var(--surface2); color: var(--text); }
+    .phase {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 4px;
+      cursor: pointer;
+      user-select: none;
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      text-align: left;
+    }
+    .phase-header:hover { color: var(--accent); }
+    .phase-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .phase-count { color: var(--text3); font-size: 0.8125rem; font-weight: 400; }
+    .phase-progress { margin-left: auto; color: var(--text3); font-size: 0.8125rem; }
+    .chevron { transition: transform 0.2s; color: var(--text3); font-size: 0.75rem; }
+    .phase.open .chevron { transform: rotate(90deg); }
+    .phase-body { display: none; padding-left: 12px; }
+    .phase.open .phase-body { display: block; }
+    .item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item.done { opacity: 0.55; }
+    .item-check { padding-top: 2px; }
+    .item-check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .item-content { flex: 1; min-width: 0; }
+    .item-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .item-title { font-weight: 600; font-size: 0.9375rem; }
+    .item.done .item-title { text-decoration: line-through; color: var(--text3); }
+    .pill {
+      font-size: 0.6875rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      white-space: nowrap;
+    }
+    .pill-critical { border-color: rgba(232,93,117,0.4); color: #f08090; }
+    .pill-high { border-color: rgba(232,145,58,0.4); color: #f0b87a; }
+    .item-desc { font-size: 0.8125rem; color: var(--text2); margin-bottom: 8px; }
+    .guide-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      padding: 4px 0;
+      font-family: inherit;
+    }
+    .guide-toggle:hover { color: var(--accent-hover); }
+    .guide-toggle .chevron { font-size: 0.625rem; }
+    .guide-toggle.open .chevron { transform: rotate(90deg); }
+    .guide-body {
+      display: none;
+      padding: 10px 0 4px;
+      border-left: 2px solid var(--border);
+      margin-left: 4px;
+      padding-left: 12px;
+    }
+    .guide-body.open { display: block; }
+    .guide-section { margin-bottom: 12px; }
+    .guide-section:last-child { margin-bottom: 0; }
+    .guide-text { font-size: 0.8125rem; color: var(--text2); }
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text2); }
+    .hidden { display: none !important; }
+    footer { text-align: center; margin-top: 32px; font-size: 0.75rem; color: var(--text3); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Checklist Projet Looker et Couche Sémantique</h1>
+    <p class="subtitle">Audit post-setup — cochez chaque point validé. Votre progression est sauvegardée localement dans votre navigateur.</p>
+
+    <div class="card">
+      <div class="card-header">Informations du projet</div>
+      <div class="grid-2">
+        <div>
+          <label class="field-label" for="projectName">Nom du projet Looker</label>
+          <input type="text" id="projectName" placeholder="ex. analytics_semantic_layer" />
+        </div>
+        <div>
+          <label class="field-label" for="reviewer">Auditeur / Responsable</label>
+          <input type="text" id="reviewer" placeholder="ex. Équipe Data Platform" />
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3" id="stats"></div>
+
+    <div class="card">
+      <div class="progress-labels">
+        <span id="progressLeft">0 validés</span>
+        <span id="progressRight">0 restants</span>
+      </div>
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span>Filtres</span>
+        <button type="button" id="resetBtn">Réinitialiser</button>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label class="field-label" for="search">Recherche</label>
+          <input type="text" id="search" placeholder="Mot-clé, catégorie, instruction…" />
+        </div>
+        <div>
+          <label class="field-label" for="priorityFilter">Priorité</label>
+          <select id="priorityFilter">
+            <option value="all">Toutes les priorités</option>
+            <option value="critical">Critique</option>
+            <option value="high">Haute</option>
+            <option value="medium">Moyenne</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="phaseFilter">Phase</label>
+          <select id="phaseFilter">
+            <option value="all">Toutes les phases</option>
+            <option value="infra">Infrastructure, Connexion et Sécurité BDD</option><option value="governance">Gouvernance Utilisateurs, Rôles et Permissions</option><option value="lookml">Architecture et Développement LookML</option><option value="cicd">Cycle de vie du Code (CI/CD) et Qualité</option><option value="content">Gouvernance des Contenus, Performance et Monitoring</option><option value="adoption">Conduite du Changement, Adoption et Documentation</option><option value="platform">Plateforme Looker et Exploitation</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+          <label class="checkbox-row">
+            <input type="checkbox" id="hideCompleted" />
+            Masquer les points validés
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="callout"></div>
+    <h2 id="itemsHeading">Points de contrôle</h2>
+    <div id="phases"></div>
+    <div id="noResults" class="callout callout-info hidden">
+      <div class="callout-title">Aucun résultat</div>
+      Aucun point ne correspond aux filtres actifs.
+    </div>
+
+    <h2>Légende des priorités</h2>
+    <div class="legend">
+      <div class="legend-item"><span class="phase-dot" style="background:var(--critical)"></span> Critique — bloquant pour la production</div>
+      <div class="legend-item"><span class="phase-dot" style="background:var(--high)"></span> Haute — fort impact sécurité, performance ou adoption</div>
+      <div class="legend-item"><span class="phase-dot" style="background:var(--medium)"></span> Moyenne — bonnes pratiques et optimisation</div>
+    </div>
+
+    <footer>Checklist Looker — 66 points de contrôle</footer>
+  </div>
+
+  <script>
+    const PHASES = [{"id":"infra","title":"Infrastructure, Connexion et Sécurité BDD","color":"pink"},{"id":"governance","title":"Gouvernance Utilisateurs, Rôles et Permissions","color":"orange"},{"id":"lookml","title":"Architecture et Développement LookML","color":"purple"},{"id":"cicd","title":"Cycle de vie du Code (CI/CD) et Qualité","color":"blue"},{"id":"content","title":"Gouvernance des Contenus, Performance et Monitoring","color":"green"},{"id":"adoption","title":"Conduite du Changement, Adoption et Documentation","color":"yellow"},{"id":"platform","title":"Plateforme Looker et Exploitation","color":"gray"}];
+    const ITEMS = [{"id":"infra-01","phaseId":"infra","category":"Connexion BDD","title":"Compte de service dédié","priority":"critical","description":"Créer un utilisateur unique (ex. looker_user) dans le Data Warehouse. Ne pas réutiliser de comptes génériques partagés.","verify":"Dans Admin > Connections, ouvrir la connexion active et noter le compte utilisé. Côté DWH, vérifier qu'un seul utilisateur technique est dédié à Looker (ex. SHOW USERS / IAM). Confirmer qu'aucun compte personnel ou admin n'est référencé.","setup":"Créer un utilisateur/service account dédié dans le DWH. Lui attribuer un nom explicite (looker_svc). Dans Looker : Admin > Connections > Edit, renseigner ce compte. Tester avec « Test connection ». Documenter le compte dans le runbook du projet."},{"id":"infra-02","phaseId":"infra","category":"Sécurité BDD","title":"Droits minimum (Least Privilege)","priority":"critical","description":"Accorder uniquement SELECT sur les schémas/tables de la couche présentation ou mart. Pas de droits DDL/DML hors schéma scratch.","verify":"Lister les grants du compte Looker (GRANTEE privilèges dans Snowflake, INFORMATION_SCHEMA dans BigQuery, pg_roles dans Postgres). Vérifier SELECT uniquement sur les schémas mart/présentation. Confirmer CREATE/INSERT/UPDATE/DELETE limités au schéma scratch.","setup":"Révoquer les droits excessifs. Accorder USAGE/SELECT sur les schémas de lecture. Accorder CREATE TABLE + DML uniquement sur le schéma scratch. Tester une requête Explore et une génération PDT pour valider les deux périmètres."},{"id":"infra-03","phaseId":"infra","category":"Performance","title":"Schéma Scratch (PDT)","priority":"critical","description":"Créer un schéma dédié en écriture (ex. looker_scratch) pour les Persistent Derived Tables et les caches matérialisés.","verify":"Dans Admin > Connections, vérifier que « Persistent Derived Tables » est activé et que le schéma scratch est renseigné. Côté DWH, confirmer l'existence du schéma et la présence de tables PDT si des derived tables sont en production.","setup":"Créer le schéma looker_scratch dans le DWH. Accorder les droits d'écriture au compte de service. Dans Looker : Admin > Connections > Edit > PDTs, activer et renseigner le schéma. Déclencher un rebuild PDT test et vérifier la table créée dans le schéma."},{"id":"infra-04","phaseId":"infra","category":"Réseau","title":"Whitelisting IP Looker","priority":"critical","description":"Configurer le pare-feu du DWH pour n'accepter que les IP officielles de l'instance Looker (ou connectivité privée).","verify":"Récupérer les IP officielles Looker (Help Center ou support Google). Vérifier les règles réseau du DWH (Security Group, Network Policy, Authorized Networks). Tenter une connexion depuis une IP non autorisée — elle doit échouer.","setup":"Obtenir la liste IP de votre instance Looker. Les ajouter aux authorized networks / IP allowlist du DWH. Si connectivité privée, configurer peering/PrivateLink à la place. Re-tester la connexion depuis Looker Admin > Test connection."},{"id":"infra-05","phaseId":"infra","category":"Connexion BDD","title":"Paramètres de connexion","priority":"high","description":"Vérifier timezone, dialecte SQL, encodage, pool de connexions max et timeouts côté Looker et DWH.","verify":"Admin > Connections > Edit : vérifier timezone (souvent UTC), dialecte, max connections, connection timeout. Lancer une requête avec NOW() et comparer avec l'heure attendue. Surveiller les erreurs « connection pool exhausted » dans System Activity.","setup":"Aligner le timezone Looker sur la convention du projet (UTC recommandé). Ajuster max_connections selon la charge (commencer à 50-75). Configurer query timeout cohérent avec le DWH. Documenter les paramètres dans le README du projet."},{"id":"infra-06","phaseId":"infra","category":"Connexion BDD","title":"Authentification DWH","priority":"critical","description":"Configurer OAuth, clé de service ou key pair selon le DWH (BigQuery, Snowflake, Redshift). Stocker les secrets hors du code LookML.","verify":"Vérifier le mode d'auth dans Admin > Connections. Pour BigQuery : service account JSON ou OAuth. Pour Snowflake : key pair ou password. Confirmer qu'aucun secret n'apparaît dans le dépôt Git (grep sur password, private_key, secret).","setup":"Créer les credentials côté cloud (service account, key pair Snowflake). Les saisir dans Admin > Connections uniquement. Pour Snowflake key pair : générer la paire, enregistrer la clé publique sur l'utilisateur, coller la clé privée chiffrée dans Looker. Tester la connexion."},{"id":"infra-07","phaseId":"infra","category":"Réseau","title":"Connectivité privée","priority":"high","description":"Si requis par la politique réseau : VPC peering, PrivateLink, Cloud Interconnect ou équivalent pour éviter le trafic public.","verify":"Vérifier avec l'équipe infra si le trafic Looker-DWH transite par un lien privé. Contrôler les logs réseau : pas d'egress public si la politique l'interdit. Confirmer la configuration dans la console cloud (Private Service Connect, PrivateLink endpoint).","setup":"Travailler avec l'équipe réseau/cloud pour établir le peering ou PrivateLink entre l'instance Looker (ou son proxy) et le VPC du DWH. Mettre à jour la connexion Looker pour pointer vers le endpoint privé. Désactiver l'accès public si applicable."},{"id":"infra-08","phaseId":"infra","category":"Chiffrement","title":"Clés KMS client","priority":"high","description":"Si requis, intégrer le KMS pour le chiffrement des caches, métadonnées et données au repos côté Looker.","verify":"Vérifier avec le CISO/DPO si un BYOK/CMEK est requis. Dans Admin ou la console Google Cloud, confirmer que les clés KMS client sont associées à l'instance. Auditer la documentation de conformité.","setup":"Créer une clé KMS dans votre coffre (GCP KMS, AWS KMS, Azure Key Vault). Suivre la procédure Looker/Google pour lier la clé à l'instance. Valider le chiffrement via la documentation d'audit fournie par Google/support Looker."},{"id":"infra-09","phaseId":"infra","category":"Sécurité BDD","title":"Forçage SSL/TLS","priority":"high","description":"Activer le chiffrement en transit sur la connexion Looker vers le DWH et documenter la configuration.","verify":"Dans Admin > Connections, vérifier que l'option SSL/TLS est activée (selon dialecte). Consulter la documentation du DWH pour confirmer que les connexions non chiffrées sont rejetées. Vérifier les paramètres sslmode pour Postgres/Redshift.","setup":"Activer « Use SSL » ou équivalent dans la configuration de connexion Looker. Télécharger le certificat CA si requis par le DWH. Tester la connexion. Si échec, ajuster verify-full vs require selon la politique sécurité."},{"id":"infra-10","phaseId":"infra","category":"Audit","title":"Journalisation requêtes DWH","priority":"high","description":"Activer l'audit des requêtes du compte de service Looker côté DWH pour traçabilité et investigation.","verify":"Interroger les logs d'audit du DWH filtrés sur le compte Looker (QUERY_HISTORY Snowflake, cloud logging BigQuery, pg_stat_statements). Vérifier que user, query text, timestamp et status sont capturés.","setup":"Activer l'audit logging sur le DWH (ACCESS_HISTORY, audit logs, Cloud Audit Logs). Créer un filtre/dashboard pour le compte looker_svc. Définir une rétention conforme à la politique (ex. 90 jours minimum)."},{"id":"gov-01","phaseId":"governance","category":"Authentification","title":"Intégration SSO (SAML / OIDC)","priority":"critical","description":"Connecter Looker au fournisseur d'identité (Okta, Azure AD, Google Workspace). Forcer MFA via l'IdP si possible.","verify":"Admin > Authentication : confirmer que SAML/OIDC est actif et que « Legacy login » est désactivé si requis. Tester une connexion avec un compte métier : redirection IdP, provisioning automatique. Vérifier MFA côté IdP.","setup":"Admin > Authentication > Configure SSO. Créer l'app SAML/OIDC dans l'IdP avec l'ACS URL et Entity ID Looker. Mapper email, first_name, last_name. Activer JIT provisioning si souhaité. Tester avec 2-3 profils. Désactiver login/password une fois validé."},{"id":"gov-02","phaseId":"governance","category":"Rôles","title":"Matrice des rôles","priority":"critical","description":"Définir Admin (max 2), Developer (équipe Data), Explorer (power users métier), Viewer (consommateurs). Documenter les droits par rôle.","verify":"Admin > Users : filtrer par rôle et compter les Admins (max 2 recommandé). Vérifier que les développeurs ont le rôle Developer, les analystes métier Explorer, les consommateurs Viewer. Confirmer l'existence d'un document matrice rôles/droits.","setup":"Rédiger la matrice rôles x permissions. Assigner les rôles via groupes plutôt qu'individuellement. Réduire les Admins au strict nécessaire. Appliquer via Admin > Roles ou en assignant le rôle par défaut au groupe."},{"id":"gov-03","phaseId":"governance","category":"Accès Données","title":"User Attributes (RLS)","priority":"critical","description":"Configurer les attributs pour la sécurité à la ligne : filtrage pays, filiale, entité (ex. country = {{ _user_attributes['user_country'] }}).","verify":"Admin > User Attributes : lister les attributs RLS. Vérifier le mapping SSO (User Attribute Sets). Se connecter avec 2 utilisateurs de périmètres différents et confirmer que les données filtrées diffèrent. Inspecter le SQL généré (sql_runner ou développeur) pour voir le filtre injecté.","setup":"Admin > User Attributes > Add : créer l'attribut (ex. user_country). Cocher « User Access » et « View Access » si les utilisateurs peuvent voir leur valeur. Mapper depuis l'IdP via User Attribute Sets. Dans LookML : sql_where ou access_filter sur l'explore. Tester avec 2 comptes."},{"id":"gov-04","phaseId":"governance","category":"Groupes","title":"Groupes par département","priority":"high","description":"Créer des groupes Looker alignés sur l'organisation (Dept_Finance, Dept_Marketing) pour faciliter l'attribution des droits.","verify":"Admin > Groups : vérifier l'existence de groupes par département ou fonction. Confirmer que les utilisateurs sont assignés aux bons groupes (manuellement ou via IdP). Vérifier que les permissions sont attachées aux groupes, pas aux individus.","setup":"Admin > Groups > New Group pour chaque département. Si l'IdP le permet, mapper les groupes IdP aux groupes Looker via SAML assertions. Assigner les utilisateurs. Attacher Model Sets, permissions dossiers et rôles aux groupes."},{"id":"gov-05","phaseId":"governance","category":"Espaces","title":"Arborescence des dossiers","priority":"high","description":"Structurer Shared officiel, sous-dossiers par direction. Bloquer l'écriture des utilisateurs finaux dans les dossiers officiels.","verify":"Parcourir Browse > Shared : vérifier l'arborescence (Shared > Direction > Sous-thème). Admin > Content Access ou permissions dossier : confirmer que Viewers/Explorers ont View only sur les dossiers officiels. Tester qu'un Explorer ne peut pas déplacer un dashboard officiel.","setup":"Créer l'arborescence dans Shared. Admin > Content Access : accorder View aux groupes métier, Edit/Manage uniquement aux admins data. Déplacer les dashboards officiels dans les bons dossiers. Communiquer la structure aux utilisateurs."},{"id":"gov-06","phaseId":"governance","category":"Accès Données","title":"Model Sets","priority":"critical","description":"Restreindre l'accès aux modèles LookML par groupe. Un utilisateur ne doit voir que les modèles de son périmètre.","verify":"Admin > Model Sets : vérifier que des ensembles distincts existent par domaine si nécessaire. Admin > Groups > [groupe] : confirmer que seuls les model sets pertinents sont assignés. Se connecter en tant qu'utilisateur métier : vérifier qu'il ne voit pas d'explores hors périmètre.","setup":"Admin > Model Sets > New : créer un set par domaine (Finance, Marketing). Y inclure uniquement les modèles concernés. Assigner le set au groupe correspondant. Retirer l'accès « All Models » des groupes métier."},{"id":"gov-07","phaseId":"governance","category":"Accès Données","title":"User Attribute Sets","priority":"critical","description":"Mapper les attributs SSO aux User Attributes Looker. Tester le provisioning à la connexion pour chaque profil type.","verify":"Admin > User Attribute Sets : vérifier le mapping entre attributs SAML/OIDC et User Attributes Looker. Se connecter via SSO avec un utilisateur test : Admin > Users > [user] > Attributes et confirmer que les valeurs sont peuplées automatiquement.","setup":"Identifier les claims SAML/OIDC de l'IdP (ex. department, country). Admin > User Attribute Sets : créer le mapping claim → User Attribute. Tester la connexion SSO. Ajuster le mapping si les valeurs sont vides ou incorrectes."},{"id":"gov-08","phaseId":"governance","category":"Permissions","title":"Permissions dossiers","priority":"high","description":"Définir View / Edit / Manage par dossier et groupe. Séparer espaces personnels, partagés officiels et sandbox.","verify":"Pour chaque dossier clé (Shared officiel, Sandbox) : vérifier les permissions par groupe dans Admin > Content Access ou via le menu dossier. Confirmer la séparation Personal vs Shared. Tester les actions interdites (edit, delete) avec un compte Viewer.","setup":"Définir la politique : officiel = View only métier, Sandbox = Edit pour Explorers. Appliquer via Admin > Content Access sur chaque dossier parent. Créer un dossier Sandbox par département si besoin."},{"id":"gov-09","phaseId":"governance","category":"API","title":"Gouvernance clés API","priority":"high","description":"Inventorier les clés API3, limiter aux intégrations nécessaires, définir une politique de rotation et de révocation.","verify":"Admin > Users > [compte technique] ou Admin > API : lister toutes les clés API3 actives. Vérifier qu'un registre documente propriétaire, usage et date de création. Confirmer qu'aucune clé orpheline ou de départ n'est active.","setup":"Inventorier les clés existantes, révoquer les inutiles. Créer des comptes techniques dédiés par intégration. Documenter la procédure de rotation (tous les 90 jours). Limiter les permissions du compte API au strict nécessaire."},{"id":"gov-10","phaseId":"governance","category":"Utilisateurs","title":"Utilisateurs embed vs standards","priority":"medium","description":"Documenter la stratégie embed (si applicable) : permissions, attribution d'attributs, cycle de vie des comptes techniques.","verify":"Si embed utilisé : vérifier Admin > Embed > Settings. Confirmer qu'un document décrit le modèle d'authentification embed (SSO embed, signed URLs). Tester un embed avec un utilisateur externe et vérifier les attributs injectés.","setup":"Configurer Embed SSO si requis. Créer un groupe embed dédié avec permissions minimales. Documenter le flow d'authentification, la gestion des session lengths et la politique de création/suppression des utilisateurs embed."},{"id":"gov-11","phaseId":"governance","category":"Gouvernance","title":"Comptes inactifs","priority":"medium","description":"Définir une politique de désactivation ou suppression des comptes non utilisés depuis N jours (via IdP ou processus manuel).","verify":"System Activity > User Activity : identifier les utilisateurs sans connexion depuis 90+ jours. Vérifier qu'une politique écrite existe (délai, notification, désactivation). Si IdP maître : confirmer que la désactivation IdP bloque l'accès Looker.","setup":"Définir la politique (ex. 90 jours d'inactivité → désactivation). Mettre en place un rapport mensuel via System Activity. Automatiser via API Looker ou processus manuel trimestriel. Désactiver les comptes concernés après notification."},{"id":"lm-01","phaseId":"lookml","category":"Structure","title":"Modélisation en couches","priority":"high","description":"Séparer vues brutes (tables), vues logiques (extensions/calculs métiers) et fichiers Explore dédiés par domaine.","verify":"Parcourir le dépôt Git : vérifier des dossiers distincts (views/base, views/logic, explores/ ou models/). Les vues brutes ne doivent contenir que sql_table_name et champs sources. Les calculs métiers doivent être dans des extensions ou vues logiques.","setup":"Restructurer le projet : créer views/base/ pour les tables sources, views/business/ pour les extensions, explores/ par domaine. Déplacer le code existant sans changer la logique. Mettre à jour les includes dans les modèles."},{"id":"lm-02","phaseId":"lookml","category":"Performance","title":"Stratégie Datagroups","priority":"critical","description":"Configurer sql_trigger_value aligné sur les runs ETL/ELT (ex. fin du run dbt). Éviter persist_for seul sur données critiques.","verify":"Ouvrir le modèle LookML : lister les datagroups. Vérifier que les données critiques utilisent sql_trigger_value pointant vers une table de contrôle ETL (ex. MAX(updated_at) d'une table metadata). Confirmer l'alignement avec le planning dbt/Airflow.","setup":"Créer une table de watermark ETL ou utiliser MAX(updated_at) sur la table fact principale. Dans le modèle : datagroup: daily_refresh { sql_trigger: SELECT MAX(...) ;; max_cache_age: 24 hours }. Assigner aux explores et PDT via persist_with. Tester un invalidation après run ETL."},{"id":"lm-03","phaseId":"lookml","category":"Standards","title":"Guide de style LookML","priority":"high","description":"Documenter nommage : dimensions snake_case, labels lisibles, mesures préfixées (total_, avg_, count_).","verify":"Vérifier l'existence d'un document CONTRIBUTING.md ou lookml_style_guide.md dans le dépôt. Échantillonner 10 fichiers .lkml : contrôler snake_case, labels en français/anglais cohérent, préfixes mesures.","setup":"Rédiger le guide de style (nommage, labels, descriptions, structure fichiers). Partager à l'équipe. Intégrer LAMS dans la CI pour faire respecter les règles automatiquement. Refactoriser les fichiers non conformes progressivement."},{"id":"lm-04","phaseId":"lookml","category":"UX Sémantique","title":"Nettoyage des Explores","priority":"high","description":"Masquer les champs techniques (hidden: yes). Limiter les champs visibles pour ne pas surcharger l'interface.","verify":"Ouvrir chaque Explore en mode Browse : compter les champs visibles. Vérifier que les clés primaires/étrangères et IDs techniques sont hidden: yes. Demander à un utilisateur métier si l'interface est compréhensible.","setup":"Ajouter hidden: yes sur les champs techniques (pk, fk, _id, hash). Utiliser fields: [liste explicite] dans les explores pour limiter l'exposition. Grouper les champs rarement utilisés avec hidden: yes par défaut et les exposer via sets si besoin."},{"id":"lm-05","phaseId":"lookml","category":"Organisation","title":"group_label","priority":"medium","description":"Regrouper dimensions et mesures connexes (ex. bloc Géographie pour adresse, ville, pays).","verify":"Ouvrir un Explore représentatif : vérifier que les champs sont regroupés logiquement (Géographie, Dates, KPIs financiers). Inspecter le LookML : chaque dimension/mesure a un group_label cohérent.","setup":"Définir une liste de group_labels standards (Géographie, Client, Produit, Finance, Dates). Les appliquer sur toutes les dimensions et mesures. Utiliser group_item_label pour l'ordre interne au groupe."},{"id":"lm-06","phaseId":"lookml","category":"Données","title":"Incrémentation PDT","priority":"high","description":"Pour tables volumineuses matérialisées, configurer increment_key et increment_offset pour éviter les rebuilds complets.","verify":"Identifier les PDT volumineuses (Admin > PDTs ou derived_table dans LookML). Vérifier la présence de increment_key et increment_offset. Consulter les logs de build : le rebuild doit traiter uniquement les nouvelles lignes.","setup":"Sur la derived_table : ajouter increment_key: updated_at et increment_offset: 1 (ou plus selon la latence). Tester un premier build complet puis un rebuild incrémental. Monitorer la durée et la taille des builds."},{"id":"lm-07","phaseId":"lookml","category":"Localisation","title":"Fichiers .strings","priority":"medium","description":"Si international, traduire labels et descriptions via les fichiers de localisation LookML.","verify":"Vérifier manifest.lkml : localization_settings activé. Chercher des fichiers locale/fr.strings ou locale/en.strings. Changer la locale utilisateur et confirmer que les labels changent dans l'interface.","setup":"Dans manifest.lkml : localization_settings: { default_locale: en, localization_level: part }. Créer locale/fr.strings avec les paires label_key::\"Traduction\". Utiliser @{label_key} dans le LookML. Tester avec un utilisateur en locale fr."},{"id":"lm-08","phaseId":"lookml","category":"Structure","title":"manifest.lkml","priority":"high","description":"Configurer project_name, localization_settings, constantes globales et paramètres du projet.","verify":"Ouvrir manifest.lkml à la racine du projet. Vérifier project_name, constantes partagées, éventuels visualizations ou applications. Confirmer qu'il n'y a qu'un seul manifest et qu'il est versionné.","setup":"Créer manifest.lkml si absent. Y définir les constantes métier (seuils, noms de schémas). Configurer localization_settings si multilingue. Valider avec lookml validate ou la CI."},{"id":"lm-09","phaseId":"lookml","category":"Intégrité","title":"primary_key sur chaque vue","priority":"critical","description":"Définir primary_key sur toutes les vues pour éviter les doublons et activer les fonctionnalités dépendantes (drill, PDT).","verify":"Grep primary_key dans le dépôt. Lister les vues sans primary_key (script ou LAMS). Ouvrir LookML validator : pas d'avertissement sur les clés manquantes. Tester un drill sur une dimension.","setup":"Pour chaque view : ajouter primary_key: id (ou combinaison de champs unique). Si pas de clé naturelle, créer une clé composite ou surrogate key dans la vue. Valider l'unicité via SQL."},{"id":"lm-10","phaseId":"lookml","category":"Jointures","title":"Relationships documentées","priority":"critical","description":"Spécifier relationship (many_to_one, etc.) et types de jointure. Valider l'absence de fanout non maîtrisé.","verify":"Pour chaque explore : vérifier que chaque join a un relationship explicite. Lancer une requête avec mesures et dimensions de tables jointes : comparer les totaux avec une requête SQL de référence. Investiguer tout écart (fanout).","setup":"Ajouter relationship: many_to_one (ou correct) sur chaque join. Utiliser symmetric_aggregates si nécessaire. Pour les fanouts connus, créer des mesures de type count distinct ou des PDT intermédiaires. Documenter les jointures complexes."},{"id":"lm-11","phaseId":"lookml","category":"Sécurité","title":"access_grants","priority":"critical","description":"Protéger dimensions/mesures sensibles (PII, marge, salaire) via access_grants liés aux groupes ou attributs.","verify":"Grep access_grant dans le dépôt. Se connecter sans le grant : les champs sensibles doivent être invisibles. Se connecter avec le grant : les champs apparaissent. Vérifier les champs PII listés dans le registre RGPD.","setup":"Définir access_grant: pii_access { user_attribute: has_pii_access equals: \"yes\" }. L'appliquer sur les champs sensibles via required_access_grants: [pii_access]. Créer le User Attribute et l'assigner aux groupes autorisés."},{"id":"lm-12","phaseId":"lookml","category":"Performance","title":"Filtres obligatoires","priority":"critical","description":"Sur grandes tables, imposer always_filter ou required_filters (période, entité) pour éviter les scans complets.","verify":"Identifier les explores sur grandes tables (>100M lignes). Vérifier always_filter ou conditionally_filter avec required_filters. Tenter d'ouvrir l'explore sans filtre date : un filtre par défaut doit s'appliquer.","setup":"Ajouter always_filter: { filters: [table.date_field: \"7 days\"] } ou required_filters: { field: table.date_field, value: \"\" } sur l'explore. Communiquer aux utilisateurs le comportement. Tester le SQL généré pour confirmer le filtre."},{"id":"lm-13","phaseId":"lookml","category":"Réutilisabilité","title":"extends et refinements","priority":"high","description":"Documenter la stratégie DRY : vues de base, extensions métier, refinements pour surcharges par modèle.","verify":"Chercher extends: et include: /**/ dans le dépôt. Vérifier qu'il n'y a pas de duplication massive de dimensions identiques. Lire la documentation interne sur le pattern utilisé.","setup":"Extraire les champs communs dans une vue de base. Créer des extensions par domaine (extend: base_view). Utiliser refinements (+view) pour les surcharges spécifiques à un modèle. Documenter le pattern dans le README."},{"id":"lm-14","phaseId":"lookml","category":"UX Sémantique","title":"drill_fields et formats","priority":"high","description":"Configurer drill_fields sur dimensions clés. Appliquer value_format_name cohérents (%, devise, décimales).","verify":"Dans l'UI : cliquer sur une dimension clé et vérifier que le drill affiche les bons champs. Vérifier les formats : montants en devise, pourcentages avec %, entiers sans décimales.","setup":"Ajouter drill_fields: [dim1, dim2, measure1] sur les dimensions de navigation. Définir value_format_name: usd, percent_2, decimal_0 dans le modèle ou sur chaque mesure. Tester dans l'explore."},{"id":"lm-15","phaseId":"lookml","category":"Géographie","title":"map_layer","priority":"medium","description":"Si cartes utilisées, configurer map_layer sur les champs géographiques et tester le rendu.","verify":"Identifier les champs utilisés dans des cartes (Looker Map ou cartes intégrées). Vérifier map_layer_name dans le LookML. Tester un visuel carte avec différentes régions.","setup":"Admin > Map Layers : vérifier les couches disponibles. Sur la dimension géographique : map_layer_name: countries ou custom layer. Tester le rendu. Pour des couches custom, configurer le topojson dans Admin."},{"id":"lm-16","phaseId":"lookml","category":"Documentation","title":"description sur chaque champ métier","priority":"high","description":"Renseigner description: sur dimensions et mesures complexes pour l'aide contextuelle au survol.","verify":"Échantillonner 20 champs métier dans l'UI : survoler et vérifier l'info-bulle. Grep description: dans le LookML et mesurer le taux de couverture sur les champs non techniques.","setup":"Ajouter description: \"...\" sur chaque dimension et mesure exposée aux utilisateurs métier. Prioriser les KPIs et champs ambigus. Intégrer la rédaction de descriptions dans la checklist de PR."},{"id":"ci-01","phaseId":"cicd","category":"Git","title":"Dépôt distant connecté","priority":"critical","description":"Connecter GitHub ou GitLab via SSH. Interdire le push direct sur main/production.","verify":"Develop > Project Settings > Git : vérifier remote origin, branche de prod (master/main). Tenter un push direct sur main : doit être bloqué par branch protection. Confirmer que le dépôt distant contient le code à jour.","setup":"Configurer le remote Git dans Looker (SSH deploy key). Connecter GitHub/GitLab. Activer branch protection sur main (require PR, no direct push). Définir la branche de production dans Looker Project Settings."},{"id":"ci-02","phaseId":"cicd","category":"Git Workflow","title":"Processus Pull Request","priority":"critical","description":"Obliger la revue de code externe à Looker avant déploiement en production.","verify":"Vérifier les branch protection rules : require PR review, minimum 1 approver. Confirmer qu'aucun développeur ne peut merger sans review. Vérifier l'historique récent : tous les merges passent par PR.","setup":"Configurer branch protection sur main dans GitHub/GitLab. Exiger 1+ reviewer de l'équipe Data. Désactiver le deploy direct depuis Looker IDE vers prod. Documenter le workflow : branche dev → PR → review → merge → deploy."},{"id":"ci-03","phaseId":"cicd","category":"Qualité","title":"Linter LookML (CI)","priority":"high","description":"Intégrer LAMS ou Spectacles dans GitHub Actions pour valider conformité, style et erreurs LookML.","verify":"Vérifier l'existence d'un workflow CI (.github/workflows). Confirmer qu'un PR récent a déclenché le linter. Introduire volontairement une erreur LookML et vérifier que la CI échoue.","setup":"Ajouter un job GitHub Actions avec LAMS (npm install -g @looker/ml-validator ou lams). Configurer les règles dans .lams.json. Bloquer le merge si la CI est rouge. Optionnel : Spectacles pour tests SQL."},{"id":"ci-04","phaseId":"cicd","category":"Non-Régression","title":"Content Validator","priority":"critical","description":"Automatiser ou systématiser le Content Validator avant chaque merge pour détecter les contenus cassés.","verify":"Dans Looker : Develop > Content Validator (ou Admin). Lancer manuellement : 0 erreur. Vérifier si la CI exécute content validation via API Spectacles. Confirmer que c'est dans la checklist de PR.","setup":"Avant chaque merge prod : exécuter Content Validator dans Looker. Automatiser via Spectacles content checker dans la CI. Bloquer le déploiement si des dashboards/Looks sont cassés. Corriger les erreurs référencées."},{"id":"ci-05","phaseId":"cicd","category":"Tests SQL","title":"Tests connectivité Explores","priority":"high","description":"Valider via Spectacles que le SQL généré par chaque jointure d'Explore s'exécute correctement sur le DWH.","verify":"Vérifier la config Spectacles (spectacles.yml). Consulter le dernier run CI : tous les explores passent. Vérifier qu'aucun explore n'est en échec SQL dans les rapports Spectacles.","setup":"Installer Spectacles. Créer spectacles.yml avec base_url, client_id, client_secret. Ajouter un job run-queries ou assert-sql. L'intégrer à la CI sur chaque PR. Corriger les explores en échec."},{"id":"ci-06","phaseId":"cicd","category":"Git Workflow","title":"Stratégie de branches","priority":"high","description":"Définir dev / QA / prod (ou feature branches). Documenter qui peut merger et quand.","verify":"Lister les branches actives dans Git. Vérifier l'existence d'un document décrivant le flow (feature → dev → QA → main). Confirmer que Looker pointe la prod sur main et le dev sur une branche dédiée.","setup":"Créer les branches dev et optionnellement qa. Configurer Looker : production = main, development mode = branche dev. Documenter le flow dans CONTRIBUTING.md. Former l'équipe au workflow."},{"id":"ci-07","phaseId":"cicd","category":"Sécurité","title":"Pas de secrets en LookML","priority":"critical","description":"Vérifier qu'aucun credential, token ou clé n'est versionné dans le dépôt LookML.","verify":"Grep dans le dépôt : password, secret, api_key, private_key, token, credential. Vérifier .gitignore. Scanner avec git-secrets ou trufflehog si disponible. Contrôler l'historique Git pour des secrets passés.","setup":"Révoquer tout secret trouvé et le retirer de l'historique (git filter-repo). Stocker les secrets dans Admin > Connections ou un vault. Ajouter un hook pre-commit ou CI scan (trufflehog). Former l'équipe."},{"id":"ci-08","phaseId":"cicd","category":"Déploiement","title":"Procédure de release","priority":"high","description":"Documenter les étapes de déploiement prod : validation, fenêtre, rollback, communication aux utilisateurs.","verify":"Chercher un document RELEASE.md ou runbook de déploiement. Vérifier les dernières releases : ont-elles suivi la procédure (PR, Content Validator, communication) ?","setup":"Rédiger la procédure : 1) PR approuvée, 2) CI verte, 3) Content Validator OK, 4) Deploy to prod hors heures de pointe, 5) Smoke test, 6) Communication Slack. Inclure le rollback (revert commit + redeploy)."},{"id":"mon-01","phaseId":"content","category":"Monitoring","title":"Analyse System Activity","priority":"high","description":"Suivre dashboards gourmands, requêtes en erreur, utilisateurs inactifs via l'app native System Activity.","verify":"Browse > Applications > System Activity : ouvrir les explores History, Dashboard Performance, User Activity. Vérifier qu'un responsable consulte ces dashboards régulièrement (hebdo minimum).","setup":"Activer l'accès System Activity pour les admins data. Créer un dashboard interne « Looker Health » avec les requêtes les plus lentes, erreurs, top users. Planifier une revue hebdomadaire."},{"id":"mon-02","phaseId":"content","category":"Performance","title":"Seuil kill des requêtes","priority":"high","description":"Configurer un temps max d'exécution côté Looker et/ou DWH pour éviter les requêtes bloquantes.","verify":"Admin > Connections : vérifier query timeout. Côté DWH : vérifier STATEMENT_TIMEOUT (Snowflake), query timeout (BigQuery). Lancer volontairement une requête longue et confirmer qu'elle est tuée.","setup":"Définir un timeout (ex. 5-15 min selon le cas d'usage). Admin > Connections > Query Timeout. Aligner côté DWH. Communiquer la limite aux utilisateurs. Monitorer les requêtes tuées dans System Activity."},{"id":"mon-03","phaseId":"content","category":"Nettoyage","title":"Contenus obsolètes","priority":"medium","description":"Processus trimestriel pour archiver Looks et Dashboards non consultés depuis 90+ jours.","verify":"System Activity > Content Activity : identifier les contenus sans vue depuis 90 jours. Vérifier qu'un processus trimestriel est documenté et qu'une dernière revue a eu lieu.","setup":"Créer un rapport mensuel des contenus inactifs. Notifier les propriétaires. Archiver ou supprimer après 30 jours de préavis. Déplacer vers un dossier Archive plutôt que supprimer directement."},{"id":"mon-04","phaseId":"content","category":"Alerting","title":"Alertes performance système","priority":"medium","description":"Configurer alertes Slack/Email si CPU Looker, file d'attente ou erreurs PDT dépassent les seuils.","verify":"Vérifier avec l'équipe ops si des alertes existent sur l'instance Looker (monitoring Google Cloud ou interne). Confirmer les canaux Slack/email et les seuils configurés.","setup":"Configurer le monitoring infrastructure (CPU, mémoire, disque). Créer des alertes sur le taux d'erreur de requêtes (System Activity API). Alerter l'équipe Data via Slack en cas de dégradation."},{"id":"mon-05","phaseId":"content","category":"Coûts","title":"Surveillance coût DWH","priority":"high","description":"Monitorer la consommation warehouse attribuable à Looker (compte de service, labels, tags de requête).","verify":"Dans le DWH billing/cost explorer : filtrer par compte looker_svc ou tag application=looker. Vérifier qu'un dashboard de coût existe et est consulté mensuellement.","setup":"Taguer les requêtes Looker (query tags Snowflake, labels BigQuery). Créer un dashboard de coût par source. Définir un budget et une alerte si dépassement. Optimiser les requêtes les plus coûteuses identifiées."},{"id":"mon-06","phaseId":"content","category":"PDT","title":"Alertes échec PDT","priority":"high","description":"Configurer des notifications en cas d'échec de build ou de régénération des PDT critiques.","verify":"Admin > PDT Event Log : vérifier les échecs récents. Confirmer qu'une alerte (email, Slack) est envoyée en cas d'échec. Tester en cassant volontairement une PDT en dev.","setup":"Configurer les notifications PDT dans Admin (email aux développeurs). Optionnel : monitorer via API System Activity (pdt_builds explore). Créer une alerte Slack sur les statuts failed. Documenter la procédure de correction."},{"id":"mon-07","phaseId":"content","category":"PDT","title":"Nettoyage PDT orphelines","priority":"medium","description":"Planifier le nettoyage des tables scratch obsolètes ou PDT non référencées dans le code actif.","verify":"Comparer les tables du schéma scratch avec les PDT référencées dans le LookML actif. Identifier les tables orphelines (dans le DWH mais plus dans le code). Vérifier qu'un nettoyage a eu lieu récemment.","setup":"Lister les tables du schéma scratch. Croiser avec grep derived_table/persist_for dans le dépôt. Supprimer les tables orphelines après validation. Planifier un script mensuel de nettoyage."},{"id":"mon-08","phaseId":"content","category":"SLA","title":"SLA fraîcheur des données","priority":"high","description":"Documenter et communiquer les délais de fraîcheur par domaine (alignés sur datagroups et pipelines).","verify":"Vérifier l'existence d'un document SLA (ex. Finance = J+1 à 8h, Ops = temps réel). Comparer avec les datagroups configurés. Interroger MAX(updated_at) et vérifier la cohérence.","setup":"Pour chaque domaine : documenter l'heure de fraîcheur attendue. Aligner les datagroups et pipelines. Ajouter un indicateur de fraîcheur sur les dashboards clés (tile texte ou champ last_refresh). Communiquer aux utilisateurs."},{"id":"mon-09","phaseId":"content","category":"Performance","title":"Guidelines dashboards","priority":"medium","description":"Recommander un nombre max de tuiles, éviter les sous-requêtes lourdes, privilégier les filtres dashboard.","verify":"Auditer les 10 dashboards les plus utilisés : compter les tuiles (recommandé < 20). Vérifier l'existence d'un guide de bonnes pratiques dashboard. Identifier les dashboards >30s de chargement.","setup":"Rédiger un guide : max 15-20 tuiles, filtres dashboard obligatoires, pas de merge queries inutiles. Refactoriser les dashboards les plus lents. Former les Explorers à la conception performante."},{"id":"ad-01","phaseId":"adoption","category":"Enablement","title":"Dashboards modèles","priority":"high","description":"Créer 2-3 dashboards de référence par département, validés par le métier, comme point de départ.","verify":"Parcourir Shared par département : vérifier la présence de dashboards « template » ou « starter ». Confirmer une validation métier (email, ticket, réunion) pour chaque modèle.","setup":"Co-construire 2-3 dashboards par département avec les power users. Les placer dans Shared > [Dept] > Modèles. Documenter leur usage. Communiquer lors du lancement."},{"id":"ad-02","phaseId":"adoption","category":"Formation","title":"Train the Trainer","priority":"high","description":"Former les Explorers pour qu'ils deviennent ambassadeurs Looker au sein de leurs équipes métier.","verify":"Vérifier le planning de formation : sessions réalisées ou planifiées. Identifier les ambassadeurs nommés par département. Confirmer qu'ils ont le rôle Explorer et les compétences (création Looks, filtres, drill).","setup":"Organiser 2 sessions de 2h : bases Looker + création de contenu. Sélectionner 1-2 ambassadeurs par département. Leur fournir un kit (slides, exercices, FAQ). Planifier des office hours mensuelles."},{"id":"ad-03","phaseId":"adoption","category":"Distribution","title":"Envois programmés","priority":"medium","description":"Configurer Slack/Email pour les rapports clés (ex. performance hebdomadaire le lundi matin).","verify":"Admin > Scheduled Plans ou Browse > Schedules : lister les envois actifs. Vérifier les destinataires, fréquence et format. Confirmer la réception sur un échantillon (Slack channel, email).","setup":"Sur le dashboard clé : Schedule > New Schedule. Configurer fréquence, destinataires, format PDF/CSV. Pour Slack : configurer l'intégration Admin > Actions > Slack. Tester un envoi. Monitorer les échecs."},{"id":"ad-04","phaseId":"adoption","category":"Glossaire","title":"Alignement définitions KPI","priority":"high","description":"Croiser les définitions LookML avec le glossaire métier officiel. Une seule source de vérité pour chaque KPI.","verify":"Prendre 5 KPIs clés : comparer la définition LookML (description, calcul SQL) avec le glossaire métier. Vérifier qu'ils correspondent. Identifier les écarts.","setup":"Organiser un atelier métier-data pour valider chaque KPI. Mettre à jour les descriptions LookML et le glossaire. Établir un processus : tout nouveau KPI doit être validé avant publication."},{"id":"ad-05","phaseId":"adoption","category":"Support","title":"Processus support / escalade","priority":"high","description":"Définir canal de support (Slack, ticket), SLA de réponse et escalade vers l'équipe Data.","verify":"Vérifier l'existence d'un canal #looker-support ou d'une queue ticket. Confirmer que le SLA est documenté (ex. réponse sous 24h). Tester en soumettant une demande fictive.","setup":"Créer un canal Slack dédié ou une catégorie Jira/ServiceNow. Documenter les niveaux : L1 (FAQ, formation), L2 (bugs contenu), L3 (équipe Data/LookML). Publier le processus sur la homepage Looker."},{"id":"ad-06","phaseId":"adoption","category":"Documentation","title":"Lien dictionnaire de données","priority":"medium","description":"Référencer dans les descriptions LookML ou un hub interne le lien vers le dictionnaire de données source.","verify":"Ouvrir le dictionnaire de données interne (Collibra, Notion, etc.). Vérifier que les tables/vues Looker y sont référencées. Chercher des liens dans les descriptions LookML ou le wiki projet.","setup":"Ajouter dans les descriptions LookML un lien vers la fiche dictionnaire (ex. description: \"Voir [dictionnaire](url)\"). Créer un hub Notion/Confluence liant Looker, dbt docs et dictionnaire. Maintenir à jour."},{"id":"plat-01","phaseId":"platform","category":"Instance","title":"Dimensionnement et licences","priority":"high","description":"Valider le sizing (nœuds, utilisateurs, fonctionnalités embed/API) selon la charge attendue.","verify":"Vérifier le contrat/licence Looker : nombre d'utilisateurs, type (Viewer, Explorer, Developer). Admin > Users : comparer le nombre actif vs licence. Monitorer la charge (CPU, requêtes concurrentes) sur System Activity.","setup":"Comparer l'usage actuel aux limites de licence. Si >70% capacité, planifier un upgrade. Valider que les types de licence correspondent aux rôles (pas d'Explorer pour des Viewers). Contacter le account manager si besoin."},{"id":"plat-02","phaseId":"platform","category":"Sécurité","title":"Conformité RGPD / PII","priority":"critical","description":"Identifier les champs PII, appliquer access_grants, documenter minimisation et droits des personnes concernées.","verify":"Consulter le registre de traitement RGPD : Looker est-il documenté ? Lister les champs PII dans LookML (email, nom, téléphone). Vérifier les access_grants. Confirmer qu'un DPO a validé.","setup":"Cartographier les champs PII dans le LookML. Appliquer access_grants restrictifs. Documenter la base légale et la durée de conservation. Mettre en place la procédure de suppression sur demande (côté source DWH)."},{"id":"plat-03","phaseId":"platform","category":"Audit","title":"Logs vers SIEM","priority":"medium","description":"Si requis, exporter les logs d'audit Looker (connexions, changements admin, accès) vers le SIEM.","verify":"Vérifier avec l'équipe sécurité si l'intégration SIEM est requise. Consulter System Activity > Audit Log. Confirmer que les logs sont exportés (API, webhook, splunk connector).","setup":"Utiliser l'API Looker pour exporter les audit logs vers le SIEM (Splunk, Datadog, etc.). Configurer un job planifié. Définir les alertes sécurité (changement admin, échecs connexion massifs)."},{"id":"plat-04","phaseId":"platform","category":"Continuité","title":"Plan de reprise","priority":"high","description":"Documenter la procédure de restauration instance, dépôt Git et continuité en cas d'incident majeur.","verify":"Chercher un document DR/BCP mentionnant Looker. Vérifier que le dépôt Git est la source de vérité (pas uniquement Looker). Confirmer qu'un test de restore a été fait ou planifié.","setup":"Documenter : 1) Git est la source de vérité LookML, 2) procédure de redeploy sur nouvelle instance, 3) contacts support Google/Looker, 4) RTO/RPO cibles. Tester un redeploy depuis Git sur un environnement de test."},{"id":"plat-05","phaseId":"platform","category":"Gouvernance","title":"Revue périodique des accès","priority":"high","description":"Planifier une revue trimestrielle des groupes, rôles, access_grants et permissions dossiers.","verify":"Vérifier le calendrier de revue d'accès (idéalement trimestriel). Confirmer qu'une dernière revue a eu lieu avec compte-rendu. Vérifier que les managers métier valident les accès de leur équipe.","setup":"Planifier une revue trimestrielle. Exporter la liste users/groupes/roles via Admin ou API. Envoyer aux managers pour validation. Révoquer les accès non justifiés. Archiver les comptes-rendus."},{"id":"plat-06","phaseId":"platform","category":"Accueil","title":"Page d'accueil personnalisée","priority":"medium","description":"Configurer une homepage avec liens vers dashboards officiels, documentation et contacts support.","verify":"Se connecter en tant qu'utilisateur standard : vérifier la page d'accueil (Admin > Homepage ou thème). Confirmer la présence de liens vers dashboards clés, documentation et support.","setup":"Admin > Homepage : configurer les sections (liens, texte, images). Ajouter les liens vers dashboards officiels par département, le wiki/documentation et le canal support. Tester avec différents profils."}];
+    const PRIORITY_LABEL = {"critical":"Critique","high":"Haute","medium":"Moyenne"};
+    const PHASE_COLORS = {"infra":"#e85d75","governance":"#e8913a","lookml":"#9b6dd7","cicd":"#4a8fd4","content":"#4caf7d","adoption":"#d4b43a","platform":"#8a8a96"};
+    const STORAGE_KEY = "looker-checklist-state-v1";
+
+    let state = loadState();
+
+    function loadState() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { checked: {}, projectName: "", reviewer: "" };
+      } catch { return { checked: {}, projectName: "", reviewer: "" }; }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function isChecked(id) { return !!state.checked[id]; }
+
+    function toggleCheck(id, val) {
+      if (val) state.checked[id] = true;
+      else delete state.checked[id];
+      saveState();
+      render();
+    }
+
+    function getFilteredItems() {
+      const q = (document.getElementById("search").value || "").trim().toLowerCase();
+      const priority = document.getElementById("priorityFilter").value;
+      const phase = document.getElementById("phaseFilter").value;
+      const hideCompleted = document.getElementById("hideCompleted").checked;
+      return ITEMS.filter(item => {
+        if (priority !== "all" && item.priority !== priority) return false;
+        if (phase !== "all" && item.phaseId !== phase) return false;
+        if (hideCompleted && isChecked(item.id)) return false;
+        if (q) {
+          const hay = (item.title + item.category + item.description + item.verify + item.setup).toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function phaseProgress(phaseId) {
+      const items = ITEMS.filter(i => i.phaseId === phaseId);
+      const done = items.filter(i => isChecked(i.id)).length;
+      return { done, total: items.length };
+    }
+
+    function escHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function renderStats() {
+      const total = ITEMS.length;
+      const done = ITEMS.filter(i => isChecked(i.id)).length;
+      const critical = ITEMS.filter(i => i.priority === "critical");
+      const criticalDone = critical.filter(i => isChecked(i.id)).length;
+      const pct = Math.round((done / total) * 100);
+
+      document.getElementById("stats").innerHTML = `
+        <div class="card stat">
+          <div class="stat-value ${done === total ? "success" : ""}">${done}/${total}</div>
+          <div class="stat-label">Points validés</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-value">${pct}%</div>
+          <div class="stat-label">Progression globale</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-value ${criticalDone === critical.length ? "success" : "warning"}">${criticalDone}/${critical.length}</div>
+          <div class="stat-label">Critiques validés</div>
+        </div>
+      `;
+
+      document.getElementById("progressLeft").textContent = done + " validés";
+      document.getElementById("progressRight").textContent = (total - done) + " restants";
+
+      const bar = document.getElementById("progressBar");
+      bar.innerHTML = PHASES.map(p => {
+        const { done: pd } = phaseProgress(p.id);
+        const w = total > 0 ? (pd / total) * 100 : 0;
+        return `<div class="progress-seg" style="width:${w}%;background:${PHASE_COLORS[p.id]}"></div>`;
+      }).join("");
+
+      const callout = document.getElementById("callout");
+      if (criticalDone < critical.length) {
+        const rem = critical.length - criticalDone;
+        callout.innerHTML = `<div class="callout callout-warning"><div class="callout-title">Points critiques en attente</div>${rem} point${rem > 1 ? "s" : ""} critique${rem > 1 ? "s" : ""} restant${rem > 1 ? "s" : ""} sur ${critical.length}. Priorisez-les avant le go-live.</div>`;
+      } else if (done === total) {
+        callout.innerHTML = `<div class="callout callout-success"><div class="callout-title">Checklist complète</div>Tous les points de contrôle sont validés. Planifiez une revue trimestrielle pour maintenir la conformité.</div>`;
+      } else {
+        callout.innerHTML = "";
+      }
+    }
+
+    function renderPhases() {
+      const filtered = getFilteredItems();
+      document.getElementById("itemsHeading").textContent = "Points de contrôle (" + filtered.length + " affichés)";
+      document.getElementById("noResults").classList.toggle("hidden", filtered.length > 0);
+
+      const container = document.getElementById("phases");
+      container.innerHTML = "";
+
+      PHASES.forEach(phase => {
+        const phaseItems = filtered.filter(i => i.phaseId === phase.id);
+        if (phaseItems.length === 0) return;
+
+        const { done, total } = phaseProgress(phase.id);
+        const phaseEl = document.createElement("div");
+        phaseEl.className = "phase" + (phase.id === "infra" || phase.id === "lookml" ? " open" : "");
+        phaseEl.innerHTML = `
+          <button type="button" class="phase-header" aria-expanded="${phaseEl.classList.contains("open")}">
+            <span class="chevron">▶</span>
+            <span class="phase-dot" style="background:${PHASE_COLORS[phase.id]}"></span>
+            <span>${escHtml(phase.title)}</span>
+            <span class="phase-count">(${phaseItems.length})</span>
+            <span class="phase-progress">${done}/${total}</span>
+          </button>
+          <div class="phase-body"></div>
+        `;
+
+        const header = phaseEl.querySelector(".phase-header");
+        header.addEventListener("click", () => {
+          phaseEl.classList.toggle("open");
+          header.setAttribute("aria-expanded", phaseEl.classList.contains("open"));
+        });
+
+        const body = phaseEl.querySelector(".phase-body");
+        phaseItems.forEach(item => {
+          const done = isChecked(item.id);
+          const itemEl = document.createElement("div");
+          itemEl.className = "item" + (done ? " done" : "");
+          itemEl.innerHTML = `
+            <div class="item-check">
+              <input type="checkbox" ${done ? "checked" : ""} aria-label="Marquer comme validé" />
+            </div>
+            <div class="item-content">
+              <div class="item-title-row">
+                <span class="item-title">${escHtml(item.title)}</span>
+                <span class="pill pill-${item.priority}">${PRIORITY_LABEL[item.priority]}</span>
+                <span class="pill">${escHtml(item.category)}</span>
+              </div>
+              <p class="item-desc">${escHtml(item.description)}</p>
+              <button type="button" class="guide-toggle" aria-expanded="false">
+                <span class="chevron">▶</span> Vérification et mise en place
+              </button>
+              <div class="guide-body">
+                <div class="guide-section">
+                  <h3>Comment vérifier</h3>
+                  <p class="guide-text">${escHtml(item.verify)}</p>
+                </div>
+                <div class="guide-section">
+                  <h3>Comment mettre en place</h3>
+                  <p class="guide-text">${escHtml(item.setup)}</p>
+                </div>
+              </div>
+            </div>
+          `;
+
+          itemEl.querySelector(".item-check input").addEventListener("change", e => {
+            toggleCheck(item.id, e.target.checked);
+          });
+
+          const guideBtn = itemEl.querySelector(".guide-toggle");
+          const guideBody = itemEl.querySelector(".guide-body");
+          guideBtn.addEventListener("click", () => {
+            guideBtn.classList.toggle("open");
+            guideBody.classList.toggle("open");
+            guideBtn.setAttribute("aria-expanded", guideBody.classList.contains("open"));
+          });
+
+          body.appendChild(itemEl);
+        });
+
+        container.appendChild(phaseEl);
+      });
+    }
+
+    function render() {
+      renderStats();
+      renderPhases();
+    }
+
+    document.getElementById("projectName").value = state.projectName || "";
+    document.getElementById("reviewer").value = state.reviewer || "";
+
+    document.getElementById("projectName").addEventListener("input", e => {
+      state.projectName = e.target.value;
+      saveState();
+    });
+    document.getElementById("reviewer").addEventListener("input", e => {
+      state.reviewer = e.target.value;
+      saveState();
+    });
+    ["search", "priorityFilter", "phaseFilter", "hideCompleted"].forEach(id => {
+      document.getElementById(id).addEventListener(id === "hideCompleted" ? "change" : "input", render);
+      if (id !== "search") document.getElementById(id).addEventListener("change", render);
+    });
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (confirm("Réinitialiser toute la progression ?")) {
+        state.checked = {};
+        saveState();
+        render();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
