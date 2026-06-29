@@ -3,82 +3,26 @@ const SYNC = window.SYNC_CONFIG || { enabled: false };
 const TOTAL_DAYS = 13;
 const POLL_MS = 3000;
 const DAY_NAMES = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
+const DEFAULT_LAYOUT = RoomStore.DEFAULT_ROADMAP_LAYOUT;
 
-const DEFAULT_LAYOUT = {
-  "project-mgmt": { startDay: 0, span: 2 },
-  infra: { startDay: 1, span: 3 },
-  governance: { startDay: 3, span: 3 },
-  lookml: { startDay: 5, span: 5 },
-  cicd: { startDay: 8, span: 3 },
-  content: { startDay: 10, span: 2 },
-  adoption: { startDay: 11, span: 2 },
-  platform: { startDay: 11, span: 2 },
-};
+const roomId = PageUtils.getRoomIdFromUrl();
+const store = RoomStore.create(roomId, SYNC);
+const syncEnabled = store.syncEnabled;
 
-const syncEnabled = SYNC.enabled && SYNC.token;
-let roomId = getRoomId();
-let checks = {};
-let layout = loadLayout();
-let layoutSha = null;
-let startDate = loadStartDate();
 let dragPhaseId = null;
 let resizeState = null;
 let selectedPhaseId = null;
-let saveQueue = Promise.resolve();
 
-function getRoomId() {
-  const params = new URLSearchParams(window.location.search);
-  let room = (params.get("room") || "").trim();
-  if (!room) {
-    room = "audit-looker";
-    params.set("room", room);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-  }
-  return room.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
+function layout() {
+  return store.state.roadmap.layout;
 }
 
-function layoutStorageKey() {
-  return `looker-roadmap-layout-${roomId}`;
+function startDate() {
+  return store.state.roadmap.startDate;
 }
 
-function startDateStorageKey() {
-  return `looker-roadmap-start-${roomId}`;
-}
-
-function checklistPath() {
-  return `sync/${roomId}.json`;
-}
-
-function roadmapPath() {
-  return `sync/roadmap-${roomId}.json`;
-}
-
-function loadLayout() {
-  try {
-    const raw = localStorage.getItem(layoutStorageKey());
-    if (raw) return { ...DEFAULT_LAYOUT, ...JSON.parse(raw) };
-  } catch {
-    // ignore
-  }
-  return structuredClone(DEFAULT_LAYOUT);
-}
-
-function saveLayoutLocal() {
-  localStorage.setItem(layoutStorageKey(), JSON.stringify(layout));
-}
-
-function loadStartDate() {
-  const stored = localStorage.getItem(startDateStorageKey());
-  if (stored) return stored;
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : day === 6 ? 2 : day === 1 ? 0 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function saveStartDate() {
-  localStorage.setItem(startDateStorageKey(), startDate);
+function checks() {
+  return store.state.checks;
 }
 
 function escHtml(s) {
@@ -99,12 +43,12 @@ function phaseItems(phaseId) {
 
 function phaseProgress(phaseId) {
   const items = phaseItems(phaseId);
-  const done = items.filter((i) => checks[i.id]?.checked).length;
+  const done = items.filter((i) => checks()[i.id]?.checked).length;
   return { done, total: items.length };
 }
 
 function globalProgress() {
-  const done = ITEMS.filter((i) => checks[i.id]?.checked).length;
+  const done = ITEMS.filter((i) => checks()[i.id]?.checked).length;
   return { done, total: ITEMS.length };
 }
 
@@ -115,20 +59,9 @@ function phaseStatus(phaseId) {
   return "progress";
 }
 
-function addBusinessDays(baseIso, offset) {
-  const d = new Date(`${baseIso}T12:00:00`);
-  let added = 0;
-  while (added < offset) {
-    d.setDate(d.getDate() + 1);
-    const day = d.getDay();
-    if (day !== 0 && day !== 6) added += 1;
-  }
-  return d;
-}
-
 function dateForDayIndex(index) {
   let count = 0;
-  const d = new Date(`${startDate}T12:00:00`);
+  const d = new Date(`${startDate()}T12:00:00`);
   while (count < index) {
     d.setDate(d.getDate() + 1);
     if (d.getDay() !== 0 && d.getDay() !== 6) count += 1;
@@ -150,126 +83,27 @@ function isToday(dayIndex) {
   );
 }
 
-function clampLayout() {
+function clampLayout(currentLayout) {
   PHASES.forEach((phase) => {
-    const entry = layout[phase.id] || { startDay: 0, span: 2 };
+    const entry = currentLayout[phase.id] || { startDay: 0, span: 2 };
     entry.span = Math.max(1, Math.min(entry.span, TOTAL_DAYS));
     entry.startDay = Math.max(0, Math.min(entry.startDay, TOTAL_DAYS - entry.span));
-    layout[phase.id] = entry;
+    currentLayout[phase.id] = entry;
   });
-}
-
-function queueSave(fn) {
-  saveQueue = saveQueue.then(fn).catch(() => setSyncStatus("error", "Erreur enregistrement"));
-}
-
-async function githubGet(path) {
-  const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${path}?ref=${SYNC.branch}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${SYNC.token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  });
-  return res;
-}
-
-async function githubPut(path, payload, sha, message) {
-  const body = {
-    message,
-    content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
-    branch: SYNC.branch,
-  };
-  if (sha) body.sha = sha;
-
-  const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${path}`;
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${SYNC.token}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error("save failed");
-  const data = await res.json();
-  return data.content?.sha || sha;
-}
-
-async function fetchChecklist() {
-  if (!syncEnabled) return;
-  try {
-    const res = await githubGet(checklistPath());
-    if (res.status === 404) {
-      checks = {};
-      render();
-      return;
-    }
-    if (!res.ok) throw new Error("fetch failed");
-    const meta = await res.json();
-    const json = JSON.parse(atob(meta.content.replace(/\n/g, "")));
-    checks = json.checks || {};
-    setSyncStatus("synced", "Synchronisé");
-    render();
-  } catch {
-    setSyncStatus("error", "Erreur sync");
-  }
-}
-
-async function fetchRoadmapLayout() {
-  if (!syncEnabled) return;
-  try {
-    const res = await githubGet(roadmapPath());
-    if (res.status === 404) {
-      layoutSha = null;
-      return;
-    }
-    if (!res.ok) throw new Error("fetch failed");
-    const meta = await res.json();
-    layoutSha = meta.sha;
-    const json = JSON.parse(atob(meta.content.replace(/\n/g, "")));
-    if (json.layout) {
-      layout = { ...DEFAULT_LAYOUT, ...json.layout };
-      if (json.startDate) {
-        startDate = json.startDate;
-        document.getElementById("startDate").value = startDate;
-        saveStartDate();
-      }
-      saveLayoutLocal();
-      render();
-    }
-  } catch {
-    // keep local layout
-  }
-}
-
-async function persistRoadmapLayout() {
-  if (!syncEnabled) return;
-  const payload = {
-    layout,
-    startDate,
-    updatedAt: Date.now(),
-  };
-  layoutSha = await githubPut(
-    roadmapPath(),
-    payload,
-    layoutSha,
-    `Sync roadmap ${roomId}`
-  );
 }
 
 function persistLayout() {
-  clampLayout();
-  saveLayoutLocal();
+  if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
+  store.patch(
+    (state) => {
+      clampLayout(state.roadmap.layout);
+    },
+    { roadmapTouch: true }
+  );
   if (syncEnabled) {
-    setSyncStatus("connecting", "Enregistrement…");
-    queueSave(async () => {
-      await persistRoadmapLayout();
-      setSyncStatus("synced", "Synchronisé");
-    });
+    store.queueSave()
+      .then(() => setSyncStatus("synced", "Synchronisé"))
+      .catch(() => setSyncStatus("error", "Erreur enregistrement"));
   }
   render();
 }
@@ -301,6 +135,7 @@ function renderSummary() {
 }
 
 function renderGrid() {
+  const currentLayout = layout();
   const grid = document.getElementById("roadmapGrid");
   grid.innerHTML = "";
 
@@ -309,12 +144,11 @@ function renderGrid() {
   grid.appendChild(corner);
 
   let col = 2;
-  const weekRow = [
+  [
     { label: "Semaine 1", span: 5 },
     { label: "Semaine 2", span: 5 },
     { label: "Semaine 3", span: 3 },
-  ];
-  weekRow.forEach((w) => {
+  ].forEach((w) => {
     const el = document.createElement("div");
     el.className = `week-band span-${w.span}`;
     el.textContent = w.label;
@@ -323,15 +157,12 @@ function renderGrid() {
     grid.appendChild(el);
   });
 
-  const corner2 = document.createElement("div");
-  corner2.className = "week-band corner";
-  grid.appendChild(corner2);
+  grid.appendChild(Object.assign(document.createElement("div"), { className: "week-band corner" }));
 
   for (let i = 0; i < TOTAL_DAYS; i += 1) {
     const d = dateForDayIndex(i);
     const header = document.createElement("div");
     header.className = `day-header${isToday(i) ? " today" : ""}`;
-    header.dataset.day = String(i);
     header.innerHTML = `
       <span class="day-label">${DAY_NAMES[i % 5]} · J${i + 1}</span>
       <span class="day-date">${formatShortDate(d)}</span>
@@ -340,7 +171,7 @@ function renderGrid() {
   }
 
   PHASES.forEach((phase) => {
-    const entry = layout[phase.id] || { startDay: 0, span: 2 };
+    const entry = currentLayout[phase.id] || { startDay: 0, span: 2 };
     const { done, total } = phaseProgress(phase.id);
     const status = phaseStatus(phase.id);
     const pct = total ? Math.round((done / total) * 100) : 0;
@@ -356,7 +187,6 @@ function renderGrid() {
 
     const lane = document.createElement("div");
     lane.className = "lane-track";
-    lane.dataset.phaseId = phase.id;
 
     lane.addEventListener("dragover", (e) => {
       e.preventDefault();
@@ -372,9 +202,14 @@ function renderGrid() {
       const rect = lane.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const day = Math.min(TOTAL_DAYS - 1, Math.floor(ratio * TOTAL_DAYS));
-      const target = layout[dragPhaseId];
-      if (!target) return;
-      target.startDay = Math.min(day, TOTAL_DAYS - target.span);
+      store.patch(
+        (state) => {
+          const target = state.roadmap.layout[dragPhaseId];
+          if (!target) return;
+          target.startDay = Math.min(day, TOTAL_DAYS - target.span);
+        },
+        { roadmapTouch: true, save: false }
+      );
       dragPhaseId = null;
       persistLayout();
     });
@@ -385,7 +220,6 @@ function renderGrid() {
     block.dataset.phaseId = phase.id;
     block.style.gridColumn = `${entry.startDay + 1} / span ${entry.span}`;
     block.style.borderLeft = `3px solid ${color}`;
-
     block.innerHTML = `
       <div class="block-top">
         <span class="block-dot" style="background:${color}"></span>
@@ -401,14 +235,13 @@ function renderGrid() {
         <span>${done}/${total} points</span>
         <span>${pct}%</span>
       </div>
-      <div class="block-resize" data-resize-phase="${phase.id}" title="Ajuster la durée"></div>
+      <div class="block-resize" title="Ajuster la durée"></div>
     `;
 
     block.addEventListener("dragstart", (e) => {
       dragPhaseId = phase.id;
       block.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", phase.id);
     });
     block.addEventListener("dragend", () => {
       block.classList.remove("dragging");
@@ -420,16 +253,14 @@ function renderGrid() {
       showPhaseDetail(phase.id);
     });
 
-    const resizeHandle = block.querySelector(".block-resize");
-    resizeHandle.addEventListener("mousedown", (e) => {
+    block.querySelector(".block-resize").addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const laneRect = lane.getBoundingClientRect();
       resizeState = {
         phaseId: phase.id,
         startX: e.clientX,
         startSpan: entry.span,
-        trackWidth: laneRect.width,
+        trackWidth: lane.getBoundingClientRect().width,
       };
       document.body.style.cursor = "ew-resize";
     });
@@ -448,7 +279,7 @@ function showPhaseDetail(phaseId) {
   document.getElementById("detailTitle").textContent = `${phase.title} — ${done}/${total} validés`;
   document.getElementById("detailList").innerHTML = items
     .map((item) => {
-      const checked = !!checks[item.id]?.checked;
+      const checked = !!checks()[item.id]?.checked;
       return `
         <div class="detail-item${checked ? " done" : ""}">
           <div class="detail-check ${checked ? "done" : "pending"}">${checked ? "✓" : ""}</div>
@@ -470,6 +301,7 @@ function hidePhaseDetail() {
 }
 
 function render() {
+  document.getElementById("startDate").value = startDate();
   renderSummary();
   renderGrid();
   if (selectedPhaseId) showPhaseDetail(selectedPhaseId);
@@ -477,7 +309,12 @@ function render() {
 
 function resetLayout() {
   if (!confirm("Réinitialiser le planning sur 2,5 semaines ?")) return;
-  layout = structuredClone(DEFAULT_LAYOUT);
+  store.patch(
+    (state) => {
+      state.roadmap.layout = structuredClone(DEFAULT_LAYOUT);
+    },
+    { roadmapTouch: true }
+  );
   persistLayout();
 }
 
@@ -492,27 +329,18 @@ function copyShareLink() {
   });
 }
 
-async function initSync() {
-  if (!syncEnabled) {
-    setSyncStatus("offline", "Sync locale");
-    return;
-  }
-  setSyncStatus("connecting", "Connexion…");
-  await fetchChecklist();
-  await fetchRoadmapLayout();
-  setInterval(fetchChecklist, POLL_MS);
-}
-
 document.getElementById("roomLabel").value = roomId;
-const checklistLink = document.querySelector('.page-nav a[href="index.html"]');
-if (checklistLink) checklistLink.href = `index.html?room=${encodeURIComponent(roomId)}`;
-document.getElementById("startDate").value = startDate;
+PageUtils.setupPageNav(roomId, "roadmap.html");
 document.getElementById("footer").textContent =
   `Roadmap Looker — ${PHASES.length} phases · ${TOTAL_DAYS} jours ouvrés — salle « ${roomId} »`;
 
 document.getElementById("startDate").addEventListener("change", (e) => {
-  startDate = e.target.value || startDate;
-  saveStartDate();
+  store.patch(
+    (state) => {
+      state.roadmap.startDate = e.target.value || state.roadmap.startDate;
+    },
+    { roadmapTouch: true }
+  );
   persistLayout();
 });
 
@@ -524,14 +352,20 @@ document.addEventListener("mousemove", (e) => {
   if (!resizeState) return;
   const dayWidth = resizeState.trackWidth / TOTAL_DAYS;
   const deltaDays = Math.round((e.clientX - resizeState.startX) / dayWidth);
-  const entry = layout[resizeState.phaseId];
+  const entry = layout()[resizeState.phaseId];
   if (!entry) return;
-  entry.span = Math.max(1, Math.min(TOTAL_DAYS - entry.startDay, resizeState.startSpan + deltaDays));
+  const nextSpan = Math.max(1, Math.min(TOTAL_DAYS - entry.startDay, resizeState.startSpan + deltaDays));
+  store.patch(
+    (state) => {
+      state.roadmap.layout[resizeState.phaseId].span = nextSpan;
+    },
+    { roadmapTouch: true, save: false }
+  );
   const block = document.querySelector(`.roadmap-block[data-phase-id="${resizeState.phaseId}"]`);
   if (block) {
-    block.style.gridColumn = `${entry.startDay + 1} / span ${entry.span}`;
+    block.style.gridColumn = `${entry.startDay + 1} / span ${nextSpan}`;
     block.querySelector(".block-meta").textContent =
-      `J${entry.startDay + 1} → J${entry.startDay + entry.span} · ${entry.span} j`;
+      `J${entry.startDay + 1} → J${entry.startDay + nextSpan} · ${nextSpan} j`;
   }
 });
 
@@ -542,6 +376,14 @@ document.addEventListener("mouseup", () => {
   persistLayout();
 });
 
-clampLayout();
-initSync();
-render();
+store.subscribe(() => render());
+
+(async function init() {
+  const status = await store.init();
+  if (!syncEnabled) setSyncStatus("offline", "Sauvegardé localement");
+  else if (status === "synced") {
+    setSyncStatus("synced", "Synchronisé");
+    store.startPolling(POLL_MS);
+  } else setSyncStatus("error", "Erreur sync");
+  render();
+})();

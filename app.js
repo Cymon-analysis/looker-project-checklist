@@ -3,91 +3,22 @@ const SYNC = window.SYNC_CONFIG || { enabled: false };
 const PRENOM_KEY = "looker-checklist-prenom";
 const POLL_MS = 3000;
 
-function metaStorageKey() {
-  return `looker-checklist-meta-${roomId}`;
-}
+const roomId = PageUtils.getRoomIdFromUrl();
+const store = RoomStore.create(roomId, SYNC);
+const syncEnabled = store.syncEnabled;
 
-function loadLocalMeta() {
-  try {
-    const raw = localStorage.getItem(metaStorageKey());
-    if (!raw) return { projectName: "", reviewer: "" };
-    const data = JSON.parse(raw);
-    return {
-      projectName: data.projectName || "",
-      reviewer: data.reviewer || "",
-    };
-  } catch {
-    return { projectName: "", reviewer: "" };
-  }
-}
-
-function saveLocalMeta() {
-  localStorage.setItem(
-    metaStorageKey(),
-    JSON.stringify({
-      projectName: remoteState.projectName,
-      reviewer: remoteState.reviewer,
-    })
-  );
-}
-
-function applyProjectFieldsToUI() {
-  document.getElementById("projectName").value = remoteState.projectName;
-  document.getElementById("reviewer").value = remoteState.reviewer;
-}
-
-let roomId = getRoomId();
 let firstName = localStorage.getItem(PRENOM_KEY) || "";
-let remoteState = { checks: {}, projectName: "", reviewer: "" };
-let fileSha = null;
 let applyingRemote = false;
 let metaSaveTimer = null;
-let pollTimer = null;
-let saveQueue = Promise.resolve();
-
-const DEFAULT_OPEN_PHASES = new Set(["infra", "lookml"]);
-let openPhases = loadOpenPhases();
 const openGuides = new Set();
+let openPhases = new Set();
 
-function openPhasesStorageKey() {
-  return `looker-checklist-open-phases-${roomId}`;
+function getChecks() {
+  return store.state.checks;
 }
 
-function loadOpenPhases() {
-  try {
-    const raw = localStorage.getItem(openPhasesStorageKey());
-    if (raw) return new Set(JSON.parse(raw));
-  } catch {
-    // ignore invalid stored state
-  }
-  return new Set(DEFAULT_OPEN_PHASES);
-}
-
-function saveOpenPhases() {
-  localStorage.setItem(openPhasesStorageKey(), JSON.stringify([...openPhases]));
-}
-
-function togglePhaseOpen(phaseId, isOpen) {
-  if (isOpen) openPhases.add(phaseId);
-  else openPhases.delete(phaseId);
-  saveOpenPhases();
-}
-
-const syncEnabled = SYNC.enabled && SYNC.token;
-
-function getRoomId() {
-  const params = new URLSearchParams(window.location.search);
-  let room = (params.get("room") || "").trim();
-  if (!room) {
-    room = "audit-looker";
-    params.set("room", room);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-  }
-  return room.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
-}
-
-function syncPath() {
-  return `sync/${roomId}.json`;
+function getOpenPhasesSet() {
+  return new Set(store.state.openPhases || []);
 }
 
 function escHtml(s) {
@@ -107,8 +38,23 @@ function formatDate(ts) {
   });
 }
 
+function applyProjectFieldsToUI() {
+  document.getElementById("projectName").value = store.state.projectName;
+  document.getElementById("reviewer").value = store.state.reviewer;
+}
+
+function togglePhaseOpen(phaseId, isOpen) {
+  store.patch((state) => {
+    const phases = new Set(state.openPhases || []);
+    if (isOpen) phases.add(phaseId);
+    else phases.delete(phaseId);
+    state.openPhases = [...phases];
+  });
+  openPhases = getOpenPhasesSet();
+}
+
 function getCheck(id) {
-  return remoteState.checks[id] || null;
+  return getChecks()[id] || null;
 }
 
 function isChecked(id) {
@@ -148,108 +94,10 @@ function attributionHtml(check) {
   return `<p class="item-attribution unchecked">Décoché par <strong>${escHtml(check.by)}</strong>${when ? ` — ${when}` : ""}</p>`;
 }
 
-function applyRemoteData(data) {
-  applyingRemote = true;
-  remoteState = {
-    checks: data.checks || {},
-    projectName:
-      data.projectName != null && data.projectName !== ""
-        ? data.projectName
-        : remoteState.projectName,
-    reviewer:
-      data.reviewer != null && data.reviewer !== ""
-        ? data.reviewer
-        : remoteState.reviewer,
-  };
-  saveLocalMeta();
-  applyProjectFieldsToUI();
-  applyingRemote = false;
+function onStoreChange() {
+  openPhases = getOpenPhasesSet();
+  if (!applyingRemote) applyProjectFieldsToUI();
   render();
-}
-
-async function fetchRemote() {
-  if (!syncEnabled) return;
-
-  try {
-    const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${syncPath()}?ref=${SYNC.branch}`;
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${SYNC.token}`,
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
-
-    if (res.status === 404) {
-      fileSha = null;
-      remoteState.checks = {};
-      render();
-      return;
-    }
-
-    if (!res.ok) throw new Error("fetch failed");
-
-    const meta = await res.json();
-    fileSha = meta.sha;
-    const json = JSON.parse(atob(meta.content.replace(/\n/g, "")));
-    applyRemoteData(json);
-    setSyncStatus("synced", "Synchronisé");
-  } catch {
-    setSyncStatus("error", "Erreur sync");
-  }
-}
-
-async function persistRemote() {
-  if (!syncEnabled) return;
-
-  const payload = {
-    projectName: remoteState.projectName,
-    reviewer: remoteState.reviewer,
-    checks: remoteState.checks,
-    updatedAt: Date.now(),
-  };
-
-  const body = {
-    message: `Sync checklist ${roomId} by ${firstName || "unknown"}`,
-    content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
-    branch: SYNC.branch,
-  };
-  if (fileSha) body.sha = fileSha;
-
-  const url = `https://api.github.com/repos/${SYNC.owner}/${SYNC.repo}/contents/${syncPath()}`;
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${SYNC.token}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) throw new Error("save failed");
-
-  const data = await res.json();
-  fileSha = data.content?.sha || fileSha;
-  setSyncStatus("synced", "Synchronisé");
-}
-
-function queueSave(fn) {
-  saveQueue = saveQueue.then(fn).catch(() => setSyncStatus("error", "Erreur enregistrement"));
-}
-
-async function initSync() {
-  if (!syncEnabled) {
-    setSyncStatus("offline", "Sync non configurée");
-    document.getElementById("syncBanner").classList.remove("hidden");
-    return;
-  }
-
-  document.getElementById("syncBanner").classList.add("hidden");
-  setSyncStatus("connecting", "Connexion…");
-  await fetchRemote();
-  pollTimer = setInterval(fetchRemote, POLL_MS);
 }
 
 async function toggleCheck(id, val) {
@@ -259,31 +107,26 @@ async function toggleCheck(id, val) {
     return;
   }
 
-  remoteState.checks[id] = { checked: val, by: firstName, at: Date.now() };
-  render();
-
-  if (!syncEnabled) return;
-
-  setSyncStatus("connecting", "Enregistrement…");
-  queueSave(async () => {
-    await persistRemote();
-    await fetchRemote();
+  if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
+  store.patch((state) => {
+    state.checks[id] = { checked: val, by: firstName, at: Date.now() };
   });
+  if (syncEnabled) {
+    store.queueSave().then(() => setSyncStatus("synced", "Synchronisé")).catch(() => setSyncStatus("error", "Erreur enregistrement"));
+  }
 }
 
 function scheduleMetaSave() {
   if (applyingRemote) return;
   clearTimeout(metaSaveTimer);
   metaSaveTimer = setTimeout(() => {
-    remoteState.projectName = document.getElementById("projectName").value;
-    remoteState.reviewer = document.getElementById("reviewer").value;
-    saveLocalMeta();
+    if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
+    store.patch((state) => {
+      state.projectName = document.getElementById("projectName").value;
+      state.reviewer = document.getElementById("reviewer").value;
+    });
     if (syncEnabled) {
-      setSyncStatus("connecting", "Enregistrement…");
-      queueSave(async () => {
-        await persistRemote();
-        await fetchRemote();
-      });
+      store.queueSave().then(() => setSyncStatus("synced", "Synchronisé")).catch(() => setSyncStatus("error", "Erreur enregistrement"));
     }
   }, 600);
 }
@@ -477,16 +320,12 @@ function copyShareLink() {
 function setupUI() {
   document.getElementById("roomLabel").value = roomId;
   document.getElementById("firstName").value = firstName;
-  const localMeta = loadLocalMeta();
-  remoteState.projectName = localMeta.projectName;
-  remoteState.reviewer = localMeta.reviewer;
-  openPhases = loadOpenPhases();
+  openPhases = getOpenPhasesSet();
   applyProjectFieldsToUI();
   document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points — salle « ${roomId} »`;
 
+  PageUtils.setupPageNav(roomId, "index.html");
   populatePhaseFilter();
-  const roadmapLink = document.querySelector('.page-nav a[href="roadmap.html"]');
-  if (roadmapLink) roadmapLink.href = `roadmap.html?room=${encodeURIComponent(roomId)}`;
   if (!firstName) showNameModal();
 
   document.getElementById("modalSaveBtn").addEventListener("click", () => {
@@ -507,21 +346,34 @@ function setupUI() {
   document.getElementById("resetBtn").addEventListener("click", () => {
     if (!confirm("Réinitialiser toutes les coches de cet espace partagé ?")) return;
     if (!firstName && !saveFirstName(prompt("Votre prénom :") || "")) return;
-    const cleared = {};
-    ITEMS.forEach((item) => {
-      cleared[item.id] = { checked: false, by: firstName, at: Date.now() };
-    });
-    remoteState.checks = cleared;
-    render();
-    if (syncEnabled) {
-      queueSave(async () => {
-        await persistRemote();
-        await fetchRemote();
+    store.patch((state) => {
+      const cleared = {};
+      ITEMS.forEach((item) => {
+        cleared[item.id] = { checked: false, by: firstName, at: Date.now() };
       });
-    }
+      state.checks = cleared;
+    });
+    if (syncEnabled) store.queueSave();
   });
 }
 
-setupUI();
-initSync();
-render();
+async function initApp() {
+  store.subscribe(onStoreChange);
+  const status = await store.init();
+  if (!syncEnabled) {
+    setSyncStatus("offline", "Sauvegardé localement");
+    document.getElementById("syncBanner").classList.remove("hidden");
+  } else if (status === "synced") {
+    document.getElementById("syncBanner").classList.add("hidden");
+    setSyncStatus("synced", "Synchronisé");
+    store.startPolling(POLL_MS);
+  } else if (status === "error") {
+    setSyncStatus("error", "Erreur sync");
+  } else {
+    setSyncStatus("offline", "Sauvegardé localement");
+  }
+  setupUI();
+  render();
+}
+
+initApp();

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comptes-rendus Weekly — Checklist Looker</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="weeklies.css" />
+</head>
+<body>
+  <div class="weekly-container">
+    <nav class="page-nav" aria-label="Navigation">
+      <a href="index.html">Checklist</a>
+      <a href="roadmap.html">Roadmap 2,5 sem.</a>
+      <a href="weeklies.html" class="active">CR Weekly</a>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <h1>Comptes-rendus des weekly</h1>
+        <p class="subtitle">Historique des points hebdomadaires — sauvegardé automatiquement.</p>
+      </div>
+      <div class="sync-toolbar">
+        <span id="syncStatus" class="sync-badge sync-offline">Hors ligne</span>
+        <button type="button" id="shareBtn" class="btn-secondary">Copier le lien</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="weekly-toolbar">
+        <div>
+          <label class="field-label" for="roomLabel">Espace partagé (room)</label>
+          <input type="text" id="roomLabel" readonly style="max-width:280px" />
+        </div>
+        <button type="button" id="addWeeklyBtn" class="btn-primary">+ Nouveau CR</button>
+      </div>
+      <p class="roadmap-hint" style="margin:0">Chaque compte-rendu est enregistré localement et synchronisé avec la salle partagée.</p>
+    </div>
+
+    <div id="weeklyFormCard" class="card weekly-form hidden">
+      <div class="card-header" id="formTitle">Nouveau compte-rendu</div>
+      <form id="weeklyForm" class="weekly-form">
+        <input type="hidden" id="weeklyId" />
+        <div class="grid-2">
+          <div>
+            <label class="field-label" for="weeklyDate">Date de la weekly</label>
+            <input type="date" id="weeklyDate" required />
+          </div>
+          <div>
+            <label class="field-label" for="weeklyTitle">Titre</label>
+            <input type="text" id="weeklyTitle" placeholder="ex. Weekly S2 — Gouvernance" maxlength="120" required />
+          </div>
+        </div>
+        <div>
+          <label class="field-label" for="weeklyParticipants">Participants</label>
+          <input type="text" id="weeklyParticipants" placeholder="ex. Simon, Marie (Converteo), Équipe Data" />
+        </div>
+        <div class="weekly-section">
+          <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit</label>
+          <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises, sujets de discussion…" required></textarea>
+        </div>
+        <div class="weekly-section">
+          <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
+          <textarea id="weeklyActions" placeholder="Actions à mener d'ici la prochaine weekly…"></textarea>
+        </div>
+        <div class="weekly-form-actions">
+          <button type="button" id="cancelWeeklyBtn" class="btn-secondary">Annuler</button>
+          <button type="submit" class="btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="weekly-toolbar">
+      <h2 style="margin:0">Historique</h2>
+      <span class="weekly-count" id="weeklyCount"></span>
+    </div>
+
+    <div id="weeklyList" class="weekly-list"></div>
+    <div id="weeklyEmpty" class="card weekly-empty hidden">
+      Aucun compte-rendu pour l'instant. Cliquez sur « Nouveau CR » pour documenter votre première weekly.
+    </div>
+
+    <footer id="footer"></footer>
+  </div>
+
+  <script src="sync-config.js"></script>
+  <script src="room-store.js"></script>
+  <script src="page-utils.js"></script>
+  <script src="weeklies.js"></script>
+</body>
+</html>
