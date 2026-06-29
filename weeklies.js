@@ -15,7 +15,8 @@ let isAnalyzingPaste = false;
 let pendingDeleteId = null;
 let isDeleting = false;
 
-const APP_BUILD = "20250629-3";
+const APP_BUILD = "20250629-4";
+let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
   const el = document.getElementById("geminiStatus");
@@ -50,7 +51,8 @@ async function analyzeWeeklyPaste({ silent = false } = {}) {
     document.getElementById("weeklyNotes").value = split.notes || "";
     document.getElementById("weeklyActions").value = split.actions || "";
     document.getElementById("splitPreview").classList.remove("hidden");
-    setGeminiStatus("ok", formatSplitStatus(split));
+    updateFormPreviews();
+    setGeminiStatus(split.error && !split.usedGemini ? "error" : "ok", formatSplitStatus(split));
     return true;
   } catch {
     setGeminiStatus("error", "Échec de l'analyse. Réessayez ou saisissez manuellement.");
@@ -76,15 +78,48 @@ function renderMd(text) {
   return Markdown.render(text);
 }
 
+function updateFormPreviews() {
+  const notes = document.getElementById("weeklyNotes")?.value || "";
+  const actions = document.getElementById("weeklyActions")?.value || "";
+  const notesEl = document.getElementById("notesPreview");
+  const actionsEl = document.getElementById("actionsPreview");
+  if (notesEl) {
+    notesEl.innerHTML = notes.trim()
+      ? renderMd(notes)
+      : '<p class="preview-empty">L\'aperçu apparaîtra après l\'analyse Gemini.</p>';
+  }
+  if (actionsEl) {
+    const count = ActionMatcher.parseActionsText(actions).length;
+    actionsEl.innerHTML = actions.trim()
+      ? `${renderMd(actions)}<p class="preview-count">${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}</p>`
+      : '<p class="preview-empty">Aucune action pour l\'instant.</p>';
+  }
+}
+
+function scheduleNotesPreview() {
+  clearTimeout(notesPreviewTimer);
+  notesPreviewTimer = setTimeout(updateFormPreviews, 300);
+}
+
+async function ensureWeeklyActions(weekly) {
+  if (weekly?.actions?.trim()) return weekly.actions;
+  if (!GeminiClient.isEnabled()) return "";
+  const source = [weekly?.notes, weekly?.rawPaste].filter(Boolean).join("\n\n");
+  if (!source.trim()) return "";
+  return GeminiClient.extractActionsFromText(source);
+}
 function formatSplitStatus(split) {
   const count = ActionMatcher.parseActionsText(split.actions).length;
+  if (split.error && !split.usedGemini) {
+    return `Gemini indisponible (${split.error}) — séparation locale utilisée.`;
+  }
   if (count > 0) {
-    return GeminiClient.isEnabled()
-      ? `Séparation Gemini OK — ${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}.`
+    return split.usedGemini
+      ? `Gemini OK — CR structuré, ${count} action${count > 1 ? "s" : ""} extraite${count > 1 ? "s" : ""}.`
       : `Séparation locale — ${count} action${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}.`;
   }
-  return GeminiClient.isEnabled()
-    ? "Séparation effectuée — aucune action détectée, saisissez-les manuellement si besoin."
+  return split.usedGemini
+    ? "CR structuré — aucune action trouvée. Complétez le champ actions ou recollez le CR."
     : "Séparation locale — aucune action détectée.";
 }
 
@@ -162,12 +197,18 @@ async function showImportModal(weekly) {
   document.getElementById("importActionsList").innerHTML =
     '<p class="paste-hint">Gemini compare les actions avec la todo et la checklist…</p>';
 
+  let actionsText = weekly.actions || "";
+  if (!actionsText.trim()) {
+    actionsText = await ensureWeeklyActions(weekly);
+    if (actionsText) weekly = { ...weekly, actions: actionsText };
+  }
+
   let parsed = [];
   try {
-    parsed = await analyzeActionsForImport(weekly.actions);
+    parsed = await analyzeActionsForImport(actionsText);
     importUsedGemini = GeminiClient.isEnabled();
   } catch {
-    parsed = ActionMatcher.analyzeActions(weekly.actions, getCatalogs());
+    parsed = ActionMatcher.analyzeActions(actionsText, getCatalogs());
     importUsedGemini = false;
   }
 
@@ -280,8 +321,13 @@ function skipImport() {
 
 async function promptImportForWeekly(weeklyId) {
   const weekly = getWeeklies().find((w) => w.id === weeklyId);
-  if (!weekly?.actions?.trim()) return;
-  await showImportModal(weekly);
+  if (!weekly) return;
+  const actions = weekly.actions?.trim() || (await ensureWeeklyActions(weekly));
+  if (!actions) {
+    alert("Aucune action détectée dans ce CR. Modifiez-le et relancez l'analyse Gemini.");
+    return;
+  }
+  await showImportModal({ ...weekly, actions });
 }
 
 function showForm(weekly) {
@@ -296,6 +342,7 @@ function showForm(weekly) {
   document.getElementById("weeklyNotes").value = weekly?.notes || "";
   document.getElementById("weeklyActions").value = weekly?.actions || "";
   document.getElementById("splitPreview").classList.toggle("hidden", !weekly?.notes);
+  updateFormPreviews();
   setGeminiStatus(null, "");
   if (weekly) document.getElementById("weeklyTitle").focus();
   else document.getElementById("weeklyRawPaste").focus();
@@ -322,6 +369,11 @@ async function saveWeeklyFromForm(e) {
     if (!notes) notes = split.notes || "";
     if (!actions) actions = split.actions || "";
     document.getElementById("weeklyNotes").value = notes;
+    document.getElementById("weeklyActions").value = actions;
+  }
+
+  if (!actions && notes && GeminiClient.isEnabled()) {
+    actions = await GeminiClient.extractActionsFromText(`${notes}\n\n${rawPaste}`.trim());
     document.getElementById("weeklyActions").value = actions;
   }
 
@@ -519,6 +571,8 @@ document.getElementById("weeklyRawPaste").addEventListener("input", schedulePast
 document.getElementById("weeklyRawPaste").addEventListener("paste", () => {
   setTimeout(schedulePasteAnalyze, 50);
 });
+document.getElementById("weeklyNotes").addEventListener("input", scheduleNotesPreview);
+document.getElementById("weeklyActions").addEventListener("input", scheduleNotesPreview);
 document.getElementById("shareBtn").addEventListener("click", copyShareLink);
 document.getElementById("importSelectAll").addEventListener("click", () => setAllImportChecks(true));
 document.getElementById("importSelectNone").addEventListener("click", () => setAllImportChecks(false));

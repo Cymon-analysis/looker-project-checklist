@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Comptes-rendus Weekly — Checklist Looker</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="weeklies.css?v=3" />
+  <link rel="stylesheet" href="weeklies.css?v=4" />
 </head>
 <body>
   <div class="weekly-container">
@@ -63,7 +63,7 @@
 
         <div class="weekly-paste-zone">
           <label class="field-label" for="weeklyRawPaste">Coller le CR complet</label>
-          <p class="paste-hint">Copiez-collez le compte-rendu brut : l'IA sépare la discussion (en Markdown) et les actions.</p>
+          <p class="paste-hint">Collez le CR brut : Gemini structure le compte-rendu (titres, puces, paragraphes) et extrait les actions.</p>
           <textarea id="weeklyRawPaste" class="paste-textarea" placeholder="Collez ici l'intégralité du CR (discussion + actions)…"></textarea>
           <div class="paste-toolbar">
             <button type="button" id="analyzePasteBtn" class="btn-primary">Analyser avec Gemini</button>
@@ -73,13 +73,29 @@
 
         <div id="splitPreview" class="split-preview">
           <p class="split-preview-label">Aperçu après analyse — modifiable avant enregistrement</p>
-          <div class="weekly-section">
-            <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit</label>
-            <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises… (Markdown : ## titres, - listes, **gras**)" required></textarea>
+          <div class="split-preview-grid">
+            <div class="weekly-section">
+              <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit (source)</label>
+              <textarea id="weeklyNotes" placeholder="Markdown éditable…" required></textarea>
+            </div>
+            <div class="weekly-section">
+              <span class="field-label">Aperçu mis en forme</span>
+              <div id="notesPreview" class="markdown-preview markdown-body">
+                <p class="preview-empty">L'aperçu apparaîtra après l'analyse Gemini.</p>
+              </div>
+            </div>
           </div>
-          <div class="weekly-section">
-            <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
-            <textarea id="weeklyActions" placeholder="Actions à mener d'ici la prochaine weekly…"></textarea>
+          <div class="split-preview-grid">
+            <div class="weekly-section">
+              <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
+              <textarea id="weeklyActions" placeholder="Une action par ligne (- …)"></textarea>
+            </div>
+            <div class="weekly-section">
+              <span class="field-label">Actions détectées</span>
+              <div id="actionsPreview" class="markdown-preview markdown-body markdown-actions">
+                <p class="preview-empty">Aucune action pour l'instant.</p>
+              </div>
+            </div>
           </div>
         </div>
         <div class="weekly-form-actions">
@@ -129,14 +145,14 @@
     </div>
   </div>
 
-  <script src="sync-config.js?v=3"></script>
-  <script src="gemini-config.js?v=3"></script>
-  <script src="room-store.js?v=3"></script>
-  <script src="page-utils.js?v=3"></script>
-  <script src="data.js?v=3"></script>
-  <script src="action-matcher.js?v=3"></script>
-  <script src="markdown.js?v=3"></script>
-  <script src="gemini-client.js?v=3"></script>
-  <script src="weeklies.js?v=3"></script>
+  <script src="sync-config.js?v=4"></script>
+  <script src="gemini-config.js?v=4"></script>
+  <script src="room-store.js?v=4"></script>
+  <script src="page-utils.js?v=4"></script>
+  <script src="data.js?v=4"></script>
+  <script src="action-matcher.js?v=4"></script>
+  <script src="markdown.js?v=4"></script>
+  <script src="gemini-client.js?v=4"></script>
+  <script src="weeklies.js?v=4"></script>
 </body>
 </html>

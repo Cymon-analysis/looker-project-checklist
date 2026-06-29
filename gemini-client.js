@@ -1,9 +1,15 @@
 (function () {
   const CFG = () => window.GEMINI_CONFIG || { enabled: false, apiKey: "", model: "gemini-2.0-flash" };
 
+  let lastError = null;
+
   function isEnabled() {
     const c = CFG();
     return Boolean(c.enabled && c.apiKey);
+  }
+
+  function getLastError() {
+    return lastError;
   }
 
   function extractJson(text) {
@@ -29,31 +35,49 @@
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          temperature: 0.15,
+          temperature: 0.1,
         },
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
+      lastError = `HTTP ${res.status}`;
       throw new Error(`gemini_http_${res.status}: ${err.slice(0, 200)}`);
     }
 
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("gemini_empty_response");
+    if (!text) {
+      lastError = "Réponse vide";
+      throw new Error("gemini_empty_response");
+    }
+    lastError = null;
     return extractJson(text);
   }
 
   function normalizeActionsField(value) {
     if (Array.isArray(value)) {
       return value
-        .map((v) => String(v).trim())
+        .map((v) => {
+          if (v && typeof v === "object") {
+            const text = String(v.text || v.title || v.action || "").trim();
+            const owner = String(v.owner || v.assignee || v.responsable || "").trim();
+            if (!text) return "";
+            return owner ? `${text} (${owner})` : text;
+          }
+          return String(v || "").trim();
+        })
         .filter(Boolean)
-        .map((a) => (a.match(/^[-*•–—]\s+/) ? a : `- ${a}`))
+        .map((a) => (a.match(/^[-*•–—]\s+/) ? a : `- ${a.replace(/^[-*•–—]\s+/, "")}`))
         .join("\n");
     }
-    return String(value || "").trim();
+    return String(value || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((a) => (a.match(/^[-*•–—]\s+/) ? a : `- ${a.replace(/^[-*•–—]\s+/, "")}`))
+      .join("\n");
   }
 
   function heuristicSplit(rawText) {
@@ -86,7 +110,7 @@
         return /^(action|todo|à faire|prochaine étape)\s*:/i.test(line);
       });
 
-    if (actionLines.length >= 2) {
+    if (actionLines.length >= 1) {
       const actionSet = new Set(actionLines);
       const notes = text
         .split(/\n+/)
@@ -104,22 +128,26 @@
 
   async function extractActionsFromText(sourceText) {
     const source = String(sourceText || "").trim();
-    if (!source) return "";
+    if (!source || !isEnabled()) return "";
 
-    const systemPrompt = `Tu extrais les actions et prochaines étapes d'un compte-rendu de réunion en français.
-Inclus les engagements explicites ET implicites :
-- formulations du type "X va…", "il faut…", "à valider", "prochaine étape", "d'ici la semaine prochaine"
-- puces ou numéros listant des tâches
-- décisions qui impliquent une action concrète
+    const systemPrompt = `Tu extrais TOUTES les tâches et prochaines étapes d'un compte-rendu de réunion en français.
 
-Une action par ligne, format liste markdown avec tiret (- ).
-Formulation courte, actionnable, à l'infinitif ou à l'impératif.
-Si vraiment aucune action, renvoie {"actions":""}.
-Réponds UNIQUEMENT en JSON: {"actions":"..."}`;
+Inclus obligatoirement :
+- puces, numéros, listes "à faire"
+- engagements nommés ("Simon va…", "Marie doit…")
+- formulations "il faut", "à valider", "prochaine étape", "d'ici la prochaine weekly"
+- décisions qui impliquent une action concrète à réaliser
+
+Chaque entrée du tableau "actions" :
+- formulation courte et actionnable (infinitif ou impératif)
+- responsable entre parenthèses si mentionné dans le texte
+
+Ne renvoie un tableau vide QUE si le texte ne contient vraiment aucun engagement ni tâche.
+Réponds UNIQUEMENT en JSON: {"actions":["action 1","action 2"]}`;
 
     try {
       const result = await generateJson(systemPrompt, source);
-      return normalizeActionsField(result.actions);
+      return normalizeActionsField(result.actions || result.items || result.todos);
     } catch {
       return "";
     }
@@ -127,29 +155,44 @@ Réponds UNIQUEMENT en JSON: {"actions":"..."}`;
 
   async function splitWeeklyText(rawText) {
     const text = String(rawText || "").trim();
-    if (!text) return { notes: "", actions: "" };
+    if (!text) return { notes: "", actions: "", usedGemini: false, error: null };
 
-    if (!isEnabled()) return heuristicSplit(text);
+    if (!isEnabled()) {
+      const split = heuristicSplit(text);
+      return { ...split, usedGemini: false, error: null };
+    }
 
-    const systemPrompt = `Tu es un assistant expert en comptes-rendus de réunion en français (projet data / Looker).
-À partir du texte brut d'une weekly, sépare le contenu en deux champs JSON:
+    const systemPrompt = `Tu es un rédacteur expert de comptes-rendus de réunion (projet data / Looker) en français.
 
-- "notes": tout ce qui s'est dit (contexte, discussion, décisions, points abordés, risques, arbitrages).
-  Formate en Markdown lisible : titres ## ou ###, listes à puces, **gras** pour les décisions importantes.
-  N'inclus PAS les actions à mener dans ce champ.
-- "actions": toutes les actions concrètes et prochaines étapes, y compris implicites
-  ("Simon va…", "il faut…", "à faire", engagements, tâches en fin de CR).
-  Une action par ligne, format liste markdown avec tiret (- ).
-  Formulation courte, actionnable.
+À partir du texte brut collé, produis un JSON avec deux champs :
 
-Si le texte ne contient vraiment aucune action, renvoie "actions" vide.
-Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
+1) "notesMarkdown" — le compte-rendu restructuré, SANS aucune tâche/action/todo.
+   Règles de mise en forme (applique-les intelligemment selon le contenu) :
+   - Découpe en 2 à 5 sections thématiques avec titres ## (ex. Contexte, Points discutés, Décisions, Risques, Arbitrages)
+   - Utilise des listes à puces (- ) quand plusieurs éléments courts appartiennent au même sujet
+   - Utilise des paragraphes (texte simple) pour le récit continu ou les explications longues
+   - Mets en **gras** les décisions importantes et les chiffres/dates clés
+   - Ne sur-structure pas : une liste à puces vaut mieux qu'un paragraphe dense
+   - Reste fidèle au contenu source, n'invente rien
+
+2) "actions" — tableau de strings (PAS un seul bloc de texte).
+   Chaque string = une tâche concrète distincte.
+   Inclus les actions explicites ET implicites du texte entier.
+   Format : verbe d'action + objet ; responsable entre parenthèses si connu.
+   Exemple : ["Valider le modèle LookML (Simon)", "Planifier la revue IAM"]
+
+IMPORTANT : si le texte source mentionne des tâches, engagements ou prochaines étapes, "actions" ne doit PAS être vide.
+
+Réponds UNIQUEMENT en JSON: {"notesMarkdown":"...","actions":["..."]}`;
 
     try {
       const result = await generateJson(systemPrompt, text);
-      let notes = String(result.notes || "").trim();
-      let actions = normalizeActionsField(result.actions);
+      let notes = String(result.notesMarkdown || result.notes || "").trim();
+      let actions = normalizeActionsField(result.actions || result.actionItems || result.todos);
 
+      if (!actions) {
+        actions = await extractActionsFromText(text);
+      }
       if (!actions) {
         actions = await extractActionsFromText(`${notes}\n\n${text}`);
       }
@@ -159,9 +202,14 @@ Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
         actions = fallback.actions || "";
       }
 
-      return { notes, actions };
-    } catch {
-      return heuristicSplit(text);
+      return { notes, actions, usedGemini: true, error: null };
+    } catch (err) {
+      const fallback = heuristicSplit(text);
+      return {
+        ...fallback,
+        usedGemini: false,
+        error: lastError || err.message,
+      };
     }
   }
 
@@ -175,7 +223,7 @@ Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
       "similar-checklist",
     ];
     return {
-      text: String(item.text || "").trim(),
+      text: String(item.text || item.action || item.title || "").trim(),
       status: allowed.includes(status) ? status : "new",
       matchTitle: item.matchTitle ? String(item.matchTitle) : undefined,
       matchId: item.matchId ? String(item.matchId) : undefined,
@@ -183,15 +231,35 @@ Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
     };
   }
 
+  function baselineActions(text) {
+    const parsed = window.ActionMatcher.parseActionsText(text);
+    if (parsed.length) return parsed;
+    return text
+      .split(/\n+/)
+      .map((line) => line.replace(/^[-*•–—]\s+/, "").trim())
+      .filter((line) => line.length >= 3);
+  }
+
   async function analyzeActions(actionsText, catalogs) {
-    const text = String(actionsText || "").trim();
+    let text = String(actionsText || "").trim();
     if (!text) return [];
 
     const todos = catalogs?.todos || [];
     const checklistItems = catalogs?.checklistItems || [];
 
+    let lines = baselineActions(text);
+    if (!lines.length && isEnabled()) {
+      const extracted = await extractActionsFromText(text);
+      text = extracted || text;
+      lines = baselineActions(text);
+    }
+
+    if (!lines.length) return [];
+
+    const actionsBlock = lines.map((l) => `- ${l}`).join("\n");
+
     if (!isEnabled()) {
-      return window.ActionMatcher.analyzeActions(text, catalogs);
+      return window.ActionMatcher.analyzeActions(actionsBlock, catalogs);
     }
 
     const todoList = todos.map((t) => ({ id: t.id, title: t.title, done: !!t.done }));
@@ -202,51 +270,50 @@ Réponds UNIQUEMENT en JSON: {"notes":"...","actions":"..."}`;
     }));
 
     const systemPrompt = `Tu analyses des actions issues d'un compte-rendu weekly (projet Looker / data).
-Le texte peut être une liste markdown (lignes commençant par - ou numérotées). Extrais CHAQUE ligne/action distincte.
-Compare chaque action avec les todos existantes et la checklist, même si la formulation diffère (synonymes, abréviations, ordre des mots).
+Voici ${lines.length} action(s) déjà extraites — compare chacune avec les todos et la checklist existantes.
 
 Todos existantes:
-${JSON.stringify(todoList, null, 0)}
+${JSON.stringify(todoList)}
 
 Checklist existante:
-${JSON.stringify(checklistList, null, 0)}
+${JSON.stringify(checklistList)}
 
-Texte des actions du CR:
-"""
-${text}
-"""
+Actions à analyser (une par ligne) :
+${lines.map((l, i) => `${i + 1}. ${l}`).join("\n")}
 
-Pour CHAQUE action distincte détectée, retourne un objet dans "items":
-- "text": formulation claire et concise de l'action (impératif ou infinitif)
-- "status": un parmi "new", "duplicate-todo", "duplicate-checklist", "similar-todo", "similar-checklist"
-  - duplicate-todo: même intention qu'une todo existante (même tâche, formulation différente)
-  - duplicate-checklist: même intention qu'un point checklist existant
-  - similar-todo / similar-checklist: proche mais pas exactement la même chose
-  - new: vraiment nouvelle
-- "matchTitle": titre de l'élément correspondant si status != "new"
-- "matchId": id de l'élément correspondant si connu
-- "score": confiance entre 0 et 1
+Pour CHAQUE action (même nombre d'entrées que la liste), retourne un objet dans "items":
+- "text": reformulation claire si besoin, sinon identique
+- "status": "new" | "duplicate-todo" | "duplicate-checklist" | "similar-todo" | "similar-checklist"
+- "matchTitle": si status != "new"
+- "matchId": si connu
+- "score": 0 à 1
 
 Réponds UNIQUEMENT en JSON: {"items":[...]}`;
 
     try {
-      const result = await generateJson(systemPrompt, text);
+      const result = await generateJson(systemPrompt, actionsBlock);
       let items = Array.isArray(result.items) ? result.items : [];
       if (!items.length && Array.isArray(result.actions)) {
-        items = result.actions.map((action) => ({ text: action, status: "new" }));
+        items = result.actions.map((action) => ({
+          text: typeof action === "string" ? action : action.text,
+          status: "new",
+        }));
       }
       const normalized = items.map(normalizeGeminiItem).filter((i) => i.text.length >= 3);
-      if (!normalized.length) return window.ActionMatcher.analyzeActions(text, catalogs);
-      return normalized;
+      if (normalized.length) return normalized;
     } catch {
-      return window.ActionMatcher.analyzeActions(text, catalogs);
+      // fallback below
     }
+
+    return window.ActionMatcher.analyzeActions(actionsBlock, catalogs);
   }
 
   window.GeminiClient = {
     isEnabled,
+    getLastError,
     splitWeeklyText,
     analyzeActions,
+    extractActionsFromText,
     heuristicSplit,
   };
 })();
