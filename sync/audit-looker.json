@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "projectName": "",
   "reviewer": "",
   "checks": {
@@ -18,5 +19,59 @@
       "at": 1782763496311
     }
   },
-  "updatedAt": 1782763496316
+  "roadmap": {
+    "layout": {
+      "project-mgmt": {
+        "startDay": 0,
+        "span": 3
+      },
+      "infra": {
+        "startDay": 1,
+        "span": 3
+      },
+      "governance": {
+        "startDay": 2,
+        "span": 3
+      },
+      "lookml": {
+        "startDay": 5,
+        "span": 5
+      },
+      "cicd": {
+        "startDay": 8,
+        "span": 3
+      },
+      "content": {
+        "startDay": 10,
+        "span": 2
+      },
+      "adoption": {
+        "startDay": 1,
+        "span": 12
+      },
+      "platform": {
+        "startDay": 11,
+        "span": 2
+      }
+    },
+    "startDate": "2026-06-29",
+    "updatedAt": 1782763535077
+  },
+  "weeklies": [
+    {
+      "id": "w-1782764950020-muyei",
+      "date": "2026-06-29",
+      "title": "Kickoff",
+      "participants": "Simon, Chaima, Hamza, Alexandre",
+      "notes": "Phase de cadrage rapide : le client a déjà identifié ses besoins. L’objectif serait  principalement de faire un récapitulatif des attentes et de réaliser un audit technique de notre côté.\nPoints de suivi opérationnel : mise en place de deux points hebdomadaires, sans la participation de Cédric :\nmercredi à 15h \nvendredi à 14h.\n\npoint mensuel avec Hamza, Alexandre et Cédric : réutilisation d’un des créneaux actuellement utilisés pour les points hebdomadaires.\nPoint avec les équipes métier afin de valider l’étape d’évangélisation et les dashboards (politique)\nRLS  : à prévoir dès le démarrage du projet. Il n’existe actuellement pas de documentation sur ce point.\nAspect IA : à discuter afin de déterminer si ce sujet fera partie du périmètre du projet.",
+      "actions": "",
+      "updatedAt": 1782764950020,
+      "createdAt": 1782764950020
+    }
+  ],
+  "openPhases": [
+    "infra",
+    "lookml"
+  ],
+  "updatedAt": 1782764950029
 }
