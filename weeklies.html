@@ -83,9 +83,27 @@
     <footer id="footer"></footer>
   </div>
 
+  <div id="importModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+    <div class="modal-card import-modal-card">
+      <h2 id="importModalTitle">Ajouter les actions à la todo ?</h2>
+      <p class="modal-text" id="importModalSubtitle"></p>
+      <div class="import-toolbar">
+        <button type="button" id="importSelectAll" class="btn-secondary">Tout sélectionner</button>
+        <button type="button" id="importSelectNone" class="btn-secondary">Tout désélectionner</button>
+      </div>
+      <div id="importActionsList" class="import-actions-list"></div>
+      <div class="modal-actions import-modal-actions">
+        <button type="button" id="importSkipBtn" class="btn-secondary">Ignorer</button>
+        <button type="button" id="importConfirmBtn" class="btn-primary">Ajouter la sélection</button>
+      </div>
+    </div>
+  </div>
+
   <script src="sync-config.js"></script>
   <script src="room-store.js"></script>
   <script src="page-utils.js"></script>
+  <script src="data.js"></script>
+  <script src="action-matcher.js"></script>
   <script src="weeklies.js"></script>
 </body>
 </html>

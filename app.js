@@ -293,8 +293,87 @@ function renderPhases() {
   });
 }
 
+function renderCustomTodos() {
+  const todos = store.state.todos || [];
+  const section = document.getElementById("customTodosSection");
+  const list = document.getElementById("customTodosList");
+  const hideCompleted = document.getElementById("hideCompleted").checked;
+  const q = (document.getElementById("search").value || "").trim().toLowerCase();
+
+  const visible = todos.filter((t) => {
+    if (hideCompleted && t.done) return false;
+    if (q && !t.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if (!todos.length) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  section.classList.remove("hidden");
+  const done = todos.filter((t) => t.done).length;
+  document.getElementById("customTodosCount").textContent = `${done}/${todos.length} terminées`;
+
+  list.innerHTML = visible
+    .map((todo) => {
+      const source = todo.weeklyTitle
+        ? `<p class="item-attribution">Issu de : ${escHtml(todo.weeklyTitle)}${todo.weeklyDate ? ` — ${formatDate(new Date(`${todo.weeklyDate}T12:00:00`).getTime())}` : ""}</p>`
+        : "";
+      const doneAttr =
+        todo.done && todo.by
+          ? `<p class="item-attribution">Validé par <strong>${escHtml(todo.by)}</strong>${todo.at ? ` — ${formatDate(todo.at)}` : ""}</p>`
+          : "";
+      return `
+        <div class="item custom-todo${todo.done ? " done" : ""}">
+          <div class="item-check">
+            <input type="checkbox" ${todo.done ? "checked" : ""} aria-label="Marquer l'action comme faite" data-todo-id="${escHtml(todo.id)}" />
+          </div>
+          <div class="item-content">
+            <div class="item-title-row">
+              <span class="item-title">${escHtml(todo.title)}</span>
+              <span class="pill pill-high">Action weekly</span>
+            </div>
+            ${source}
+            ${doneAttr}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  list.querySelectorAll("[data-todo-id]").forEach((input) => {
+    input.addEventListener("change", (e) => {
+      toggleCustomTodo(e.target.dataset.todoId, e.target.checked);
+    });
+  });
+}
+
+function toggleCustomTodo(id, val) {
+  if (!firstName) {
+    showNameModal();
+    render();
+    return;
+  }
+  if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
+  store.patch((state) => {
+    const todo = (state.todos || []).find((t) => t.id === id);
+    if (!todo) return;
+    todo.done = val;
+    todo.by = firstName;
+    todo.at = Date.now();
+    todo.updatedAt = Date.now();
+  });
+  if (syncEnabled) {
+    store.queueSave()
+      .then(() => setSyncStatus("synced", "Synchronisé"))
+      .catch(() => setSyncStatus("error", "Erreur enregistrement"));
+  }
+}
+
 function render() {
   renderStats();
+  renderCustomTodos();
   renderPhases();
 }
 

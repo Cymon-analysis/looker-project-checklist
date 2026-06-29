@@ -114,3 +114,104 @@
 .weekly-editing .weekly-card {
   border-color: var(--accent);
 }
+
+.import-modal-card {
+  max-width: 640px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.import-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.import-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.import-action-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.import-action-row.is-duplicate {
+  opacity: 0.75;
+  background: rgba(138, 138, 150, 0.08);
+}
+
+.import-action-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.import-action-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.import-action-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.import-action-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.import-tag {
+  font-size: 0.6875rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+
+.import-tag.tag-duplicate {
+  border-color: rgba(138, 138, 150, 0.5);
+  color: var(--text3);
+}
+
+.import-tag.tag-similar {
+  border-color: rgba(232, 145, 58, 0.45);
+  color: #f0b87a;
+}
+
+.import-tag.tag-checklist {
+  border-color: rgba(74, 143, 212, 0.45);
+  color: #8ab8e8;
+}
+
+.import-tag.tag-new {
+  border-color: rgba(76, 175, 125, 0.45);
+  color: var(--success);
+}
+
+.import-modal-actions {
+  justify-content: space-between;
+}
+
+.weekly-import-btn {
+  margin-top: 8px;
+}

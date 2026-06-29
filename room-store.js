@@ -30,6 +30,7 @@
         updatedAt: 0,
       },
       weeklies: [],
+      todos: [],
       openPhases: ["infra", "lookml"],
       updatedAt: 0,
     };
@@ -42,6 +43,17 @@
       if (!local || (check.at || 0) >= (local.at || 0)) merged[id] = check;
     });
     return merged;
+  }
+
+  function mergeTodos(a, b) {
+    const map = new Map();
+    [...(a || []), ...(b || [])].forEach((entry) => {
+      const existing = map.get(entry.id);
+      if (!existing || (entry.updatedAt || 0) >= (existing.updatedAt || 0)) {
+        map.set(entry.id, entry);
+      }
+    });
+    return [...map.values()].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
   }
 
   function mergeWeeklies(a, b) {
@@ -73,6 +85,7 @@
     }
 
     state.weeklies = Array.isArray(raw.weeklies) ? raw.weeklies : [];
+    state.todos = Array.isArray(raw.todos) ? raw.todos : [];
     state.updatedAt = raw.updatedAt || 0;
     return state;
   }
@@ -84,6 +97,7 @@
 
     merged.checks = mergeChecks(l.checks, r.checks);
     merged.weeklies = mergeWeeklies(l.weeklies, r.weeklies);
+    merged.todos = mergeTodos(l.todos, r.todos);
 
     if ((l.roadmap.updatedAt || 0) >= (r.roadmap.updatedAt || 0)) {
       merged.roadmap = { ...l.roadmap };
@@ -149,6 +163,13 @@
     try {
       const weeklies = localStorage.getItem(`looker-weeklies-${roomId}`);
       if (weeklies) state.weeklies = JSON.parse(weeklies);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const todos = localStorage.getItem(`looker-todos-${roomId}`);
+      if (todos) state.todos = JSON.parse(todos);
     } catch {
       // ignore
     }
@@ -223,6 +244,10 @@
       localStorage.setItem(
         `looker-weeklies-${this.roomId}`,
         JSON.stringify(this.state.weeklies)
+      );
+      localStorage.setItem(
+        `looker-todos-${this.roomId}`,
+        JSON.stringify(this.state.todos)
       );
     }
 
