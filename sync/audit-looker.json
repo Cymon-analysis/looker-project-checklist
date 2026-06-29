@@ -55,23 +55,13 @@
       }
     },
     "startDate": "2026-06-29",
-    "updatedAt": 1782763535077
+    "updatedAt": 1782767457930
   },
-  "weeklies": [
-    {
-      "id": "w-1782764950020-muyei",
-      "date": "2026-06-29",
-      "title": "Kickoff",
-      "participants": "Simon, Chaima, Hamza, Alexandre",
-      "notes": "Phase de cadrage rapide : le client a déjà identifié ses besoins. L’objectif serait  principalement de faire un récapitulatif des attentes et de réaliser un audit technique de notre côté.\nPoints de suivi opérationnel : mise en place de deux points hebdomadaires, sans la participation de Cédric :\nmercredi à 15h \nvendredi à 14h.\n\npoint mensuel avec Hamza, Alexandre et Cédric : réutilisation d’un des créneaux actuellement utilisés pour les points hebdomadaires.\nPoint avec les équipes métier afin de valider l’étape d’évangélisation et les dashboards (politique)\nRLS  : à prévoir dès le démarrage du projet. Il n’existe actuellement pas de documentation sur ce point.\nAspect IA : à discuter afin de déterminer si ce sujet fera partie du périmètre du projet.",
-      "actions": "",
-      "updatedAt": 1782764950020,
-      "createdAt": 1782764950020
-    }
-  ],
+  "weeklies": [],
+  "todos": [],
   "openPhases": [
     "infra",
     "lookml"
   ],
-  "updatedAt": 1782764950792
+  "updatedAt": 1782767469057
 }
