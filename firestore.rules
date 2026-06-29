@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Accès ouvert par ID de salle (l'URL ?room=xxx fait office de clé de partage).
+    // Pour un usage interne uniquement — ne stockez pas de données sensibles ici.
+    match /checklists/{roomId} {
+      allow read, write: if true;
+    }
+  }
+}

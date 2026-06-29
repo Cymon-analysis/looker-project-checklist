@@ -1,35 +1,46 @@
 # Checklist Projet Looker et Couche Sémantique
 
-Checklist interactive pour auditer la mise en place d'un projet Looker et d'une couche sémantique LookML.
+Checklist interactive partagée pour auditer la mise en place d'un projet Looker et d'une couche sémantique LookML.
 
-## Utilisation
+**Page en ligne :** [https://cymon-analysis.github.io/looker-project-checklist/](https://cymon-analysis.github.io/looker-project-checklist/)
 
-Ouvrez [la page en ligne](https://cymon-analysis.github.io/looker-project-checklist/) ou le fichier `index.html` localement.
+## Fonctionnalités
 
-- Cochez les points validés (sauvegarde automatique dans le navigateur via localStorage)
-- Déployez **Vérification et mise en place** pour les instructions détaillées
-- Filtrez par priorité, phase ou mot-clé
+- 66 points de contrôle en 7 phases
+- Instructions détaillées (vérification + mise en place) par point
+- **Synchronisation en temps réel** entre appareils (Firebase Firestore)
+- **Attribution** : qui a coché/décoché chaque point, avec horodatage
+- Lien de partage pour collaborer (ex. avec une consultante)
+- Saisie du prénom à la première visite
 
-## Contenu
+## Partager avec une consultante
 
-66 points de contrôle répartis en 7 phases :
+1. Ouvrez la checklist
+2. Cliquez **Copier le lien de partage**
+3. Envoyez l'URL (contient `?room=...` — même salle = même données)
+4. Elle entre son prénom et coche les points — vous voyez ses validations en direct
 
-1. Infrastructure, Connexion et Sécurité BDD
-2. Gouvernance Utilisateurs, Rôles et Permissions
-3. Architecture et Développement LookML
-4. Cycle de vie du Code (CI/CD) et Qualité
-5. Gouvernance des Contenus, Performance et Monitoring
-6. Conduite du Changement, Adoption et Documentation
-7. Plateforme Looker et Exploitation
+Pour un projet dédié, utilisez une URL du type :
+`https://cymon-analysis.github.io/looker-project-checklist/?room=mon-audit-2026`
 
-## Régénérer la page
+## Activer la synchronisation cloud
 
-Si le canvas source est modifié :
+Par défaut, la progression est locale tant que Firebase n'est pas configuré.
+
+Suivez le guide : [docs/CONFIGURATION-SYNC.md](docs/CONFIGURATION-SYNC.md) (5 minutes).
+
+## Régénérer les données depuis le canvas
 
 ```bash
 node generate.mjs
 ```
 
-## Licence
+## Structure
 
-Usage libre en interne.
+| Fichier | Rôle |
+|---------|------|
+| `index.html` | Page principale |
+| `app.js` | Logique interactive + sync Firebase |
+| `data.js` | Données checklist (généré) |
+| `firebase-config.js` | Config Firebase (généré au déploiement) |
+| `styles.css` | Styles |
