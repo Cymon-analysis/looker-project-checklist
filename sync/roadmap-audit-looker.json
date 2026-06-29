@@ -9,7 +9,7 @@
       "span": 3
     },
     "governance": {
-      "startDay": 5,
+      "startDay": 3,
       "span": 3
     },
     "lookml": {
@@ -34,5 +34,5 @@
     }
   },
   "startDate": "2026-06-29",
-  "updatedAt": 1782763514875
+  "updatedAt": 1782763515698
 }
