@@ -26,7 +26,7 @@
     },
     "adoption": {
       "startDay": 1,
-      "span": 2
+      "span": 12
     },
     "platform": {
       "startDay": 11,
@@ -34,5 +34,5 @@
     }
   },
   "startDate": "2026-06-29",
-  "updatedAt": 1782763533433
+  "updatedAt": 1782763535077
 }
