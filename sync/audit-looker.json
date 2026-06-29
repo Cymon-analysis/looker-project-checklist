@@ -59,21 +59,11 @@
   },
   "weeklies": [
     {
-      "id": "w-1782764950020-muyei",
-      "date": "2026-06-29",
-      "title": "Kickoff",
-      "participants": "Simon, Chaima, Hamza, Alexandre",
-      "notes": "Phase de cadrage rapide : le client a dÃÂÃÂ©jÃÂÃÂ  identifiÃÂÃÂ© ses besoins. LÃÂ¢ÃÂÃÂobjectif seraitÃÂÃÂ  principalement de faire un rÃÂÃÂ©capitulatif des attentes et de rÃÂÃÂ©aliser un audit technique de notre cÃÂÃÂ´tÃÂÃÂ©.\nPoints de suivi opÃÂÃÂ©rationnel : mise en place de deux points hebdomadaires, sans la participation de CÃÂÃÂ©dric :\nmercredi ÃÂÃÂ  15h \nvendredi ÃÂÃÂ  14h.\n\npoint mensuel avec Hamza, Alexandre et CÃÂÃÂ©dric : rÃÂÃÂ©utilisation dÃÂ¢ÃÂÃÂun des crÃÂÃÂ©neaux actuellement utilisÃÂÃÂ©s pour les points hebdomadaires.\nPoint avec les ÃÂÃÂ©quipes mÃÂÃÂ©tier afin de valider lÃÂ¢ÃÂÃÂÃÂÃÂ©tape dÃÂ¢ÃÂÃÂÃÂÃÂ©vangÃÂÃÂ©lisation et les dashboards (politique)\nRLS  : ÃÂÃÂ  prÃÂÃÂ©voir dÃÂÃÂ¨s le dÃÂÃÂ©marrage du projet. Il nÃÂ¢ÃÂÃÂexiste actuellement pas de documentation sur ce point.\nAspect IA : ÃÂÃÂ  discuter afin de dÃÂÃÂ©terminer si ce sujet fera partie du pÃÂÃÂ©rimÃÂÃÂ¨tre du projet.",
-      "actions": "",
-      "updatedAt": 1782764950020,
-      "createdAt": 1782764950020
-    },
-    {
       "id": "w-1782768872663-d0u5n",
       "date": "2026-06-29",
       "title": "Kickoff",
       "participants": "",
-      "notes": "Phase de cadrage rapide : le client a déjà identifié ses besoins. L’objectif serait  principalement de faire un récapitulatif des attentes et de réaliser un audit technique de notre côté.\nPoints de suivi opérationnel : mise en place de deux points hebdomadaires, sans la participation de Cédric :\nmercredi à 15h \nvendredi à 14h.\n\npoint mensuel avec Hamza, Alexandre et Cédric : réutilisation d’un des créneaux actuellement utilisés pour les points hebdomadaires.\nPoint avec les équipes métier afin de valider l’étape d’évangélisation et les dashboards (politique)\nRLS  : à prévoir dès le démarrage du projet. Il n’existe actuellement pas de documentation sur ce point.\nAspect IA : à discuter afin de déterminer si ce sujet fera partie du périmètre du projet.",
+      "notes": "Phase de cadrage rapide : le client a dÃ©jÃ  identifiÃ© ses besoins. Lâobjectif seraitÂ  principalement de faire un rÃ©capitulatif des attentes et de rÃ©aliser un audit technique de notre cÃ´tÃ©.\nPoints de suivi opÃ©rationnel : mise en place de deux points hebdomadaires, sans la participation de CÃ©dric :\nmercredi Ã  15h \nvendredi Ã  14h.\n\npoint mensuel avec Hamza, Alexandre et CÃ©dric : rÃ©utilisation dâun des crÃ©neaux actuellement utilisÃ©s pour les points hebdomadaires.\nPoint avec les Ã©quipes mÃ©tier afin de valider lâÃ©tape dâÃ©vangÃ©lisation et les dashboards (politique)\nRLS  : Ã  prÃ©voir dÃ¨s le dÃ©marrage du projet. Il nâexiste actuellement pas de documentation sur ce point.\nAspect IA : Ã  discuter afin de dÃ©terminer si ce sujet fera partie du pÃ©rimÃ¨tre du projet.",
       "actions": "",
       "updatedAt": 1782768872663,
       "createdAt": 1782768872663
@@ -84,5 +74,5 @@
     "infra",
     "lookml"
   ],
-  "updatedAt": 1782768873300
+  "updatedAt": 1782769140629
 }
