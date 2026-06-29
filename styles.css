@@ -237,3 +237,41 @@ footer { text-align: center; margin-top: 32px; font-size: 0.75rem; color: var(--
 }
 .modal-text { color: var(--text2); font-size: 0.875rem; margin: 8px 0 16px; }
 .modal-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
+.page-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.page-nav a {
+  text-decoration: none;
+  font-size: 0.875rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  background: var(--surface);
+}
+.page-nav a:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.page-nav a.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(74, 143, 212, 0.12);
+}
+input[type="date"] {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.875rem;
+}
+input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}

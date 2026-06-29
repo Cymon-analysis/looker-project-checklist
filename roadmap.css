@@ -1,0 +1,359 @@
+.roadmap-container {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .roadmap-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .roadmap-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.roadmap-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.roadmap-controls .field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.roadmap-hint {
+  font-size: 0.8125rem;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+.roadmap-board {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: 140px repeat(13, minmax(72px, 1fr));
+  gap: 6px;
+  min-width: 1100px;
+}
+
+.week-band {
+  grid-column: span 1;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.week-band.corner {
+  grid-column: 1;
+}
+
+.week-band.span-5 { grid-column: span 5; }
+.week-band.span-3 { grid-column: span 3; }
+
+.lane-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text2);
+  padding: 8px 6px 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.25;
+}
+
+.lane-label-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.roadmap-lane {
+  display: contents;
+}
+
+.lane-track {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(13, minmax(72px, 1fr));
+  gap: 6px;
+  min-height: 72px;
+  position: relative;
+  padding: 4px 0;
+}
+
+.lane-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent calc(100% / 13 - 6px),
+    rgba(42, 47, 61, 0.45) calc(100% / 13 - 6px),
+    rgba(42, 47, 61, 0.45) calc(100% / 13)
+  );
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+.day-header {
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px dashed transparent;
+  color: var(--text2);
+}
+
+.day-header .day-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.day-header .day-date {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.day-header.today {
+  border-color: var(--accent);
+  background: rgba(74, 143, 212, 0.1);
+}
+
+.day-header.drop-target {
+  border-color: var(--accent);
+  background: rgba(74, 143, 212, 0.18);
+}
+
+.lane-drop {
+  min-height: 72px;
+  border-radius: 6px;
+  border: 1px dashed transparent;
+}
+
+.lane-track.drop-target {
+  outline: 1px dashed var(--accent);
+  background: rgba(74, 143, 212, 0.08);
+}
+
+.roadmap-block {
+  position: relative;
+  z-index: 1;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface2);
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.roadmap-block:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.roadmap-block.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.roadmap-block.status-done {
+  border-color: rgba(76, 175, 125, 0.55);
+  background: linear-gradient(135deg, rgba(76, 175, 125, 0.18), var(--surface2));
+}
+
+.roadmap-block.status-progress {
+  border-color: rgba(74, 143, 212, 0.45);
+}
+
+.roadmap-block.status-pending {
+  opacity: 0.92;
+}
+
+.block-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.block-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.block-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.block-meta {
+  font-size: 0.6875rem;
+  color: var(--text3);
+}
+
+.block-progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.block-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s;
+}
+
+.block-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--text2);
+}
+
+.block-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  border-radius: 0 8px 8px 0;
+}
+
+.block-resize:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.roadmap-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  font-size: 0.8125rem;
+  color: var(--text2);
+}
+
+.roadmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.roadmap-detail {
+  margin-top: 16px;
+}
+
+.roadmap-detail.hidden {
+  display: none;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.detail-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+
+.detail-item.done {
+  opacity: 0.72;
+}
+
+.detail-item.done .detail-item-title {
+  text-decoration: line-through;
+  color: var(--text3);
+}
+
+.detail-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+}
+
+.detail-check.done {
+  background: var(--success);
+  color: #0f1117;
+}
+
+.detail-check.pending {
+  border: 1px solid var(--border);
+}
+
+.detail-item-title {
+  font-weight: 500;
+}
+
+.detail-item-sub {
+  font-size: 0.75rem;
+  color: var(--text3);
+  margin-top: 2px;
+}

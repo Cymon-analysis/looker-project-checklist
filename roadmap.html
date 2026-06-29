@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roadmap — Checklist Looker</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="roadmap.css" />
+</head>
+<body>
+  <div class="roadmap-container">
+    <nav class="page-nav" aria-label="Navigation">
+      <a href="index.html">Checklist</a>
+      <a href="roadmap.html" class="active">Roadmap 2,5 sem.</a>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <h1>Roadmap projet — 2,5 semaines</h1>
+        <p class="subtitle">Planifiez les phases, déplacez les blocs selon l'avancement et suivez ce qui est fait.</p>
+      </div>
+      <div class="sync-toolbar">
+        <span id="syncStatus" class="sync-badge sync-offline">Hors ligne</span>
+        <button type="button" id="shareBtn" class="btn-secondary">Copier le lien</button>
+      </div>
+    </header>
+
+    <div class="roadmap-summary" id="summary"></div>
+
+    <div class="card">
+      <div class="roadmap-controls">
+        <div class="field">
+          <label class="field-label" for="startDate">Date de début (J1)</label>
+          <input type="date" id="startDate" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="roomLabel">Espace partagé (room)</label>
+          <input type="text" id="roomLabel" readonly />
+        </div>
+        <button type="button" id="resetLayoutBtn" class="btn-secondary">Réinitialiser le planning</button>
+      </div>
+      <p class="roadmap-hint">Glissez-déposez un bloc sur un jour pour le replanifier. Tirez le bord droit pour ajuster la durée. Cliquez sur un bloc pour voir le détail des points.</p>
+      <div class="roadmap-board">
+        <div class="roadmap-grid" id="roadmapGrid"></div>
+      </div>
+      <div class="roadmap-legend">
+        <span><span class="legend-swatch" style="background:var(--success)"></span> Phase terminée</span>
+        <span><span class="legend-swatch" style="background:var(--accent)"></span> En cours</span>
+        <span><span class="legend-swatch" style="background:var(--border)"></span> À faire</span>
+        <span><span class="legend-swatch" style="border:1px dashed var(--accent);background:transparent"></span> Aujourd'hui</span>
+      </div>
+    </div>
+
+    <div class="card roadmap-detail hidden" id="phaseDetail">
+      <div class="detail-header">
+        <h2 id="detailTitle">Détail de la phase</h2>
+        <button type="button" id="closeDetailBtn" class="btn-secondary">Fermer</button>
+      </div>
+      <div class="detail-list" id="detailList"></div>
+    </div>
+
+    <footer id="footer"></footer>
+  </div>
+
+  <script src="sync-config.js"></script>
+  <script src="data.js"></script>
+  <script src="roadmap.js"></script>
+</body>
+</html>

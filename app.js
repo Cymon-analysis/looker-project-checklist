@@ -485,6 +485,8 @@ function setupUI() {
   document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points — salle « ${roomId} »`;
 
   populatePhaseFilter();
+  const roadmapLink = document.querySelector('.page-nav a[href="roadmap.html"]');
+  if (roadmapLink) roadmapLink.href = `roadmap.html?room=${encodeURIComponent(roomId)}`;
   if (!firstName) showNameModal();
 
   document.getElementById("modalSaveBtn").addEventListener("click", () => {
