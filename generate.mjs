@@ -21,6 +21,7 @@ const PHASES = eval(phasesRaw);
 
 const PRIORITY_LABEL = { critical: "Critique", high: "Haute", medium: "Moyenne" };
 const PHASE_COLORS = {
+  "project-mgmt": "#2a9d8f",
   infra: "#e85d75",
   governance: "#e8913a",
   lookml: "#9b6dd7",

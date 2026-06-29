@@ -3,6 +3,39 @@ const SYNC = window.SYNC_CONFIG || { enabled: false };
 const PRENOM_KEY = "looker-checklist-prenom";
 const POLL_MS = 3000;
 
+function metaStorageKey() {
+  return `looker-checklist-meta-${roomId}`;
+}
+
+function loadLocalMeta() {
+  try {
+    const raw = localStorage.getItem(metaStorageKey());
+    if (!raw) return { projectName: "", reviewer: "" };
+    const data = JSON.parse(raw);
+    return {
+      projectName: data.projectName || "",
+      reviewer: data.reviewer || "",
+    };
+  } catch {
+    return { projectName: "", reviewer: "" };
+  }
+}
+
+function saveLocalMeta() {
+  localStorage.setItem(
+    metaStorageKey(),
+    JSON.stringify({
+      projectName: remoteState.projectName,
+      reviewer: remoteState.reviewer,
+    })
+  );
+}
+
+function applyProjectFieldsToUI() {
+  document.getElementById("projectName").value = remoteState.projectName;
+  document.getElementById("reviewer").value = remoteState.reviewer;
+}
+
 let roomId = getRoomId();
 let firstName = localStorage.getItem(PRENOM_KEY) || "";
 let remoteState = { checks: {}, projectName: "", reviewer: "" };
@@ -91,11 +124,17 @@ function applyRemoteData(data) {
   applyingRemote = true;
   remoteState = {
     checks: data.checks || {},
-    projectName: data.projectName || "",
-    reviewer: data.reviewer || "",
+    projectName:
+      data.projectName != null && data.projectName !== ""
+        ? data.projectName
+        : remoteState.projectName,
+    reviewer:
+      data.reviewer != null && data.reviewer !== ""
+        ? data.reviewer
+        : remoteState.reviewer,
   };
-  document.getElementById("projectName").value = remoteState.projectName;
-  document.getElementById("reviewer").value = remoteState.reviewer;
+  saveLocalMeta();
+  applyProjectFieldsToUI();
   applyingRemote = false;
   render();
 }
@@ -115,7 +154,7 @@ async function fetchRemote() {
 
     if (res.status === 404) {
       fileSha = null;
-      remoteState = { checks: {}, projectName: "", reviewer: "" };
+      remoteState.checks = {};
       render();
       return;
     }
@@ -210,6 +249,7 @@ function scheduleMetaSave() {
   metaSaveTimer = setTimeout(() => {
     remoteState.projectName = document.getElementById("projectName").value;
     remoteState.reviewer = document.getElementById("reviewer").value;
+    saveLocalMeta();
     if (syncEnabled) {
       setSyncStatus("connecting", "Enregistrement…");
       queueSave(async () => {
@@ -398,6 +438,10 @@ function copyShareLink() {
 function setupUI() {
   document.getElementById("roomLabel").value = roomId;
   document.getElementById("firstName").value = firstName;
+  const localMeta = loadLocalMeta();
+  remoteState.projectName = localMeta.projectName;
+  remoteState.reviewer = localMeta.reviewer;
+  applyProjectFieldsToUI();
   document.getElementById("footer").textContent = `Checklist Looker — ${ITEMS.length} points — salle « ${roomId} »`;
 
   populatePhaseFilter();
