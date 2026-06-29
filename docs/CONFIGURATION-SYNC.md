@@ -16,6 +16,21 @@ La checklist synchronise l'état via un fichier JSON dans ce dépôt (`sync/{roo
 
 4. Relancez le workflow **Deploy GitHub Pages** (onglet Actions).
 
+## Gemini (analyse des CR weekly)
+
+1. Créez une clé API sur [Google AI Studio](https://aistudio.google.com/apikey).
+
+2. Ajoutez le secret dans GitHub :
+   - Dépôt → **Settings** → **Secrets and variables** → **Actions**
+   - Nom : `GEMINI_API_KEY`
+   - Valeur : votre clé API Gemini
+
+3. Relancez le workflow **Deploy GitHub Pages**.
+
+Fonctionnalités activées :
+- Séparation automatique « ce qu'il s'est dit » / « actions » lors du collage d'un CR
+- Détection intelligente des doublons lors de l'import vers la todo
+
 ## Partage
 
 Envoyez le lien avec `?room=mon-projet` à votre consultante. Les coches se synchronisent toutes les 3 secondes.

@@ -26,6 +26,11 @@
       </div>
     </header>
 
+    <div id="geminiCallout" class="callout callout-warning hidden">
+      <div class="callout-title">Gemini non configuré</div>
+      L'analyse intelligente (séparation CR / actions et détection de doublons) nécessite une clé API Gemini dans les secrets GitHub (<code>GEMINI_API_KEY</code>).
+    </div>
+
     <div class="card">
       <div class="weekly-toolbar">
         <div>
@@ -34,7 +39,7 @@
         </div>
         <button type="button" id="addWeeklyBtn" class="btn-primary">+ Nouveau CR</button>
       </div>
-      <p class="roadmap-hint" style="margin:0">Chaque compte-rendu est enregistré localement et synchronisé avec la salle partagée.</p>
+      <p class="roadmap-hint" style="margin:0">Collez un CR brut pour le séparer automatiquement. Gemini analyse aussi les doublons lors de l'import vers la todo.</p>
     </div>
 
     <div id="weeklyFormCard" class="card weekly-form hidden">
@@ -55,13 +60,27 @@
           <label class="field-label" for="weeklyParticipants">Participants</label>
           <input type="text" id="weeklyParticipants" placeholder="ex. Simon, Marie (Converteo), Équipe Data" />
         </div>
-        <div class="weekly-section">
-          <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit</label>
-          <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises, sujets de discussion…" required></textarea>
+
+        <div class="weekly-paste-zone">
+          <label class="field-label" for="weeklyRawPaste">Coller le CR complet</label>
+          <p class="paste-hint">Copiez-collez le compte-rendu brut : l'IA sépare automatiquement la discussion et les actions.</p>
+          <textarea id="weeklyRawPaste" class="paste-textarea" placeholder="Collez ici l'intégralité du CR (discussion + actions)…"></textarea>
+          <div class="paste-toolbar">
+            <button type="button" id="analyzePasteBtn" class="btn-primary">Analyser avec Gemini</button>
+            <span id="geminiStatus" class="gemini-status hidden"></span>
+          </div>
         </div>
-        <div class="weekly-section">
-          <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
-          <textarea id="weeklyActions" placeholder="Actions à mener d'ici la prochaine weekly…"></textarea>
+
+        <div id="splitPreview" class="split-preview">
+          <p class="split-preview-label">Aperçu après analyse — modifiable avant enregistrement</p>
+          <div class="weekly-section">
+            <label class="field-label" for="weeklyNotes">Ce qu'il s'est dit</label>
+            <textarea id="weeklyNotes" placeholder="Points abordés, décisions prises, sujets de discussion…" required></textarea>
+          </div>
+          <div class="weekly-section">
+            <label class="field-label" for="weeklyActions">Actions / prochaines étapes</label>
+            <textarea id="weeklyActions" placeholder="Actions à mener d'ici la prochaine weekly…"></textarea>
+          </div>
         </div>
         <div class="weekly-form-actions">
           <button type="button" id="cancelWeeklyBtn" class="btn-secondary">Annuler</button>
@@ -100,10 +119,12 @@
   </div>
 
   <script src="sync-config.js"></script>
+  <script src="gemini-config.js"></script>
   <script src="room-store.js"></script>
   <script src="page-utils.js"></script>
   <script src="data.js"></script>
   <script src="action-matcher.js"></script>
+  <script src="gemini-client.js"></script>
   <script src="weeklies.js"></script>
 </body>
 </html>

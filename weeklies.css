@@ -212,6 +212,85 @@
   justify-content: space-between;
 }
 
+.weekly-paste-zone {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--accent);
+  background: rgba(74, 143, 212, 0.06);
+}
+
+.paste-hint {
+  font-size: 0.8125rem;
+  color: var(--text3);
+  margin: 4px 0 8px;
+}
+
+.paste-textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.paste-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.paste-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.gemini-status {
+  font-size: 0.8125rem;
+  color: var(--text2);
+}
+
+.gemini-status.loading {
+  color: var(--accent);
+}
+
+.gemini-status.error {
+  color: var(--critical);
+}
+
+.gemini-status.ok {
+  color: var(--success);
+}
+
+.split-preview {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.split-preview-label {
+  font-size: 0.75rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.import-ai-badge {
+  font-size: 0.6875rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 109, 215, 0.45);
+  color: #c9a8f0;
+  margin-left: 8px;
+}
+
 .weekly-import-btn {
   margin-top: 8px;
 }

@@ -23,15 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate sync config
+      - name: Generate config files
         env:
           SYNC_GITHUB_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           node <<'NODE'
           const fs = require("fs");
-          const enabled = Boolean(process.env.SYNC_GITHUB_TOKEN);
-          const cfg = {
-            enabled,
+          const syncCfg = {
+            enabled: Boolean(process.env.SYNC_GITHUB_TOKEN),
             owner: "Cymon-analysis",
             repo: "looker-project-checklist",
             branch: "main",
@@ -39,7 +39,16 @@ jobs:
           };
           fs.writeFileSync(
             "sync-config.js",
-            `window.SYNC_CONFIG = ${JSON.stringify(cfg, null, 2)};\n`
+            `window.SYNC_CONFIG = ${JSON.stringify(syncCfg, null, 2)};\n`
+          );
+          const geminiCfg = {
+            enabled: Boolean(process.env.GEMINI_API_KEY),
+            apiKey: process.env.GEMINI_API_KEY || "",
+            model: "gemini-2.0-flash",
+          };
+          fs.writeFileSync(
+            "gemini-config.js",
+            `window.GEMINI_CONFIG = ${JSON.stringify(geminiCfg, null, 2)};\n`
           );
           NODE
 
