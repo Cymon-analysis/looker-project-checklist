@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checklist Projet Looker et Couche Sémantique</title>
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=15" />
 </head>
 <body>
   <div id="nameModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -116,6 +116,22 @@
 
     <div id="callout"></div>
 
+    <div class="card" id="notebooklmCard">
+      <div class="card-header">
+        <span>Enrichissement NotebookLM</span>
+        <span id="notebooklmStatus" class="calendar-status">Vérification…</span>
+      </div>
+      <p class="paste-hint" style="margin-top:0">
+        Importez des documents techniques (code Dataform, specs, architecture) dans votre notebook NotebookLM,
+        puis enrichissez les tâches importantes : descriptions, vérification, mise en place et sous-actions.
+        NotebookLM propose aussi de nouvelles tâches (avec détection des doublons).
+      </p>
+      <div class="calendar-toolbar">
+        <button type="button" id="openEnrichBtn" class="btn-primary" disabled>Enrichir les tâches</button>
+      </div>
+      <p id="notebooklmHint" class="calendar-hint hidden"></p>
+    </div>
+
     <div class="card" id="addTaskCard">
       <div class="card-header">
         <span>Ajouter une tâche</span>
@@ -159,13 +175,58 @@
     <footer id="footer"></footer>
   </div>
 
-  <script src="sync-config.js?v=9"></script>
-  <script src="gemini-config.js?v=9"></script>
-  <script src="room-store.js?v=9"></script>
-  <script src="page-utils.js?v=9"></script>
-  <script src="data.js?v=9"></script>
-  <script src="action-matcher.js?v=9"></script>
-  <script src="gemini-client.js?v=9"></script>
-  <script src="app.js?v=10"></script>
+  <div id="enrichModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="enrichModalTitle">
+    <div class="modal-card enrich-modal-card">
+      <h2 id="enrichModalTitle">Enrichir avec NotebookLM</h2>
+      <p class="modal-text" id="enrichModalSubtitle">Sélectionnez les tâches et ajoutez vos documents techniques.</p>
+
+      <div class="enrich-section">
+        <label class="field-label">Documents techniques (optionnel)</label>
+        <p class="paste-hint">Fichiers texte/code (.sqlx, .sql, .js, .md, .txt, .yaml…) — envoyés au notebook NotebookLM.</p>
+        <input type="file" id="enrichFileInput" multiple accept=".txt,.md,.sql,.sqlx,.js,.ts,.json,.yaml,.yml,.py,.csv,.xml,.html,.css" />
+        <ul id="enrichFileList" class="enrich-file-list"></ul>
+      </div>
+
+      <div class="enrich-section">
+        <div class="import-toolbar">
+          <span class="field-label" style="margin:0">Tâches à enrichir</span>
+          <button type="button" id="enrichSelectCritical" class="btn-secondary">Critiques + hautes</button>
+          <button type="button" id="enrichSelectAll" class="btn-secondary">Tout</button>
+          <button type="button" id="enrichSelectNone" class="btn-secondary">Aucune</button>
+        </div>
+        <div id="enrichTaskList" class="enrich-task-list"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="enrichCancelBtn" class="btn-secondary">Annuler</button>
+        <button type="button" id="enrichRunBtn" class="btn-primary">Lancer l'analyse</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="enrichResultModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="enrichResultTitle">
+    <div class="modal-card enrich-modal-card">
+      <h2 id="enrichResultTitle">Résultats NotebookLM</h2>
+      <p class="modal-text" id="enrichResultSubtitle"></p>
+      <div id="enrichResultEnrichments" class="enrich-results-list"></div>
+      <h3 class="enrich-result-heading">Nouvelles tâches proposées</h3>
+      <div id="enrichResultNewTasks" class="import-actions-list"></div>
+      <div class="modal-actions import-modal-actions">
+        <button type="button" id="enrichResultSkipBtn" class="btn-secondary">Ignorer</button>
+        <button type="button" id="enrichResultApplyBtn" class="btn-primary">Appliquer la sélection</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sync-config.js?v=15"></script>
+  <script src="gemini-config.js?v=15"></script>
+  <script src="gemini-config-normalize.js?v=15"></script>
+  <script src="room-store.js?v=15"></script>
+  <script src="page-utils.js?v=15"></script>
+  <script src="data.js?v=15"></script>
+  <script src="action-matcher.js?v=15"></script>
+  <script src="gemini-client.js?v=15"></script>
+  <script src="notebooklm-client.js?v=15"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

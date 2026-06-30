@@ -34,6 +34,7 @@
       deletedWeeklyIds: {},
       deletedTodoIds: {},
       deletedItemIds: {},
+      itemEnrichments: {},
       openPhases: ["infra", "lookml"],
       updatedAt: 0,
     };
@@ -140,6 +141,8 @@
       raw.deletedTodoIds && typeof raw.deletedTodoIds === "object" ? raw.deletedTodoIds : {};
     state.deletedItemIds =
       raw.deletedItemIds && typeof raw.deletedItemIds === "object" ? raw.deletedItemIds : {};
+    state.itemEnrichments =
+      raw.itemEnrichments && typeof raw.itemEnrichments === "object" ? raw.itemEnrichments : {};
     state.updatedAt = raw.updatedAt || 0;
     return state;
   }
@@ -153,6 +156,7 @@
     merged.deletedWeeklyIds = mergeDeletedMaps(l.deletedWeeklyIds, r.deletedWeeklyIds);
     merged.deletedTodoIds = mergeDeletedMaps(l.deletedTodoIds, r.deletedTodoIds);
     merged.deletedItemIds = mergeDeletedMaps(l.deletedItemIds, r.deletedItemIds);
+    merged.itemEnrichments = { ...(l.itemEnrichments || {}), ...(r.itemEnrichments || {}) };
 
     if ((l.updatedAt || 0) > (r.updatedAt || 0)) {
       merged.weeklies = applyDeletedFilter(l.weeklies, merged.deletedWeeklyIds);

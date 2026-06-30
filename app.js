@@ -14,8 +14,450 @@ const openGuides = new Set();
 const openTodoGuides = new Set();
 let openPhases = new Set();
 let undoTimer = null;
+let enrichPendingFiles = [];
+let enrichResultData = { enrichments: [], newTasks: [] };
 
 const UNDO_MS = 8000;
+
+function getItemEnrichments() {
+  return store.state.itemEnrichments || {};
+}
+
+function getItemEnrichment(itemId) {
+  return getItemEnrichments()[itemId] || null;
+}
+
+function escAttr(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+
+function renderSubtasksHtml(subtasks, parentKey, onToggle) {
+  const list = (subtasks || []).filter((s) => s && s.title);
+  if (!list.length) return "";
+  const items = list
+    .map(
+      (sub) => `
+      <li>
+        <input type="checkbox" data-subtask-parent="${escAttr(parentKey)}" data-subtask-id="${escAttr(sub.id)}" ${sub.done ? "checked" : ""} aria-label="Sous-action" />
+        <span class="${sub.done ? "subtask-done" : ""}">${escHtml(sub.title)}</span>
+      </li>`
+    )
+    .join("");
+  return `<div class="guide-subtasks"><h4>Sous-actions</h4><ul class="subtasks-list">${items}</ul></div>`;
+}
+
+function bindSubtaskToggles(container, kind) {
+  container.querySelectorAll("[data-subtask-id]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const parentKey = input.dataset.subtaskParent;
+      const subId = input.dataset.subtaskId;
+      const done = input.checked;
+      store.patch((state) => {
+        if (kind === "todo") {
+          const todo = (state.todos || []).find((t) => t.id === parentKey);
+          if (!todo?.subtasks) return;
+          const sub = todo.subtasks.find((s) => s.id === subId);
+          if (sub) sub.done = done;
+          todo.updatedAt = Date.now();
+        } else {
+          state.itemEnrichments = state.itemEnrichments || {};
+          const entry = state.itemEnrichments[parentKey];
+          if (!entry?.subtasks) return;
+          const sub = entry.subtasks.find((s) => s.id === subId);
+          if (sub) sub.done = done;
+        }
+      });
+      const label = input.nextElementSibling;
+      if (label) label.classList.toggle("subtask-done", done);
+    });
+  });
+}
+
+function normalizeSubtasks(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .map((s) => {
+      if (typeof s === "string") {
+        const title = s.trim();
+        if (!title) return null;
+        return { id: PageUtils.newTodoId(), title, done: false };
+      }
+      const title = String(s.title || s.text || "").trim();
+      if (!title) return null;
+      return {
+        id: s.id || PageUtils.newTodoId(),
+        title,
+        done: !!s.done,
+      };
+    })
+    .filter(Boolean);
+}
+
+function getCatalogs() {
+  return {
+    todos: getTodos(),
+    checklistItems: getVisibleChecklistItems(),
+  };
+}
+
+function buildEnrichableTasks() {
+  const tasks = [];
+  getVisibleChecklistItems().forEach((item) => {
+    const enrichment = getItemEnrichment(item.id);
+    tasks.push({
+      refId: item.id,
+      kind: "checklist",
+      title: item.title,
+      description: enrichment?.description || item.description,
+      verify: enrichment?.verify || item.verify,
+      setup: enrichment?.setup || item.setup,
+      phaseId: item.phaseId,
+      priority: item.priority,
+      category: item.category,
+    });
+  });
+  (getTodos() || []).forEach((todo) => {
+    if (todo.done) return;
+    tasks.push({
+      refId: todo.id,
+      kind: "todo",
+      title: todo.title,
+      description: todo.description || "",
+      verify: todo.verify || "",
+      setup: todo.setup || "",
+      phaseId: todo.phaseId || "project-mgmt",
+      priority: todo.priority || "medium",
+    });
+  });
+  return tasks;
+}
+
+function renderEnrichTaskList() {
+  const list = document.getElementById("enrichTaskList");
+  if (!list) return;
+  const tasks = buildEnrichableTasks();
+  if (!tasks.length) {
+    list.innerHTML = '<p class="paste-hint">Aucune tâche disponible.</p>';
+    return;
+  }
+  list.innerHTML = tasks
+    .map(
+      (task) => `
+      <div class="enrich-task-row">
+        <label>
+          <input type="checkbox" data-enrich-ref="${escAttr(task.refId)}" data-enrich-kind="${escAttr(task.kind)}" data-enrich-priority="${escAttr(task.priority)}" ${
+        task.priority === "critical" || task.priority === "high" ? "checked" : ""
+      } />
+          <span>
+            <strong>${escHtml(task.title)}</strong>
+            <span class="paste-hint"> — ${escHtml(task.kind === "checklist" ? "Checklist" : "Todo")} · ${escHtml(PRIORITY_LABEL[task.priority] || task.priority)}</span>
+          </span>
+        </label>
+      </div>`
+    )
+    .join("");
+}
+
+function getSelectedEnrichTasks() {
+  const all = buildEnrichableTasks();
+  const selected = new Set();
+  document.querySelectorAll("#enrichTaskList [data-enrich-ref]:checked").forEach((el) => {
+    selected.add(el.dataset.enrichRef);
+  });
+  return all.filter((t) => selected.has(t.refId));
+}
+
+async function updateNotebookLMUI() {
+  const statusEl = document.getElementById("notebooklmStatus");
+  const hintEl = document.getElementById("notebooklmHint");
+  const btn = document.getElementById("openEnrichBtn");
+  if (!statusEl || !btn) return;
+
+  if (!window.NotebookLMClient?.isConfigured?.()) {
+    statusEl.textContent = "Proxy non configuré";
+    statusEl.className = "calendar-status warn";
+    btn.disabled = true;
+    if (hintEl) {
+      hintEl.textContent = "Configurez GEMINI_PROXY_URL et déployez NotebookLM MCP (voir docs/NOTEBOOKLM-MCP.md).";
+      hintEl.classList.remove("hidden");
+    }
+    return;
+  }
+
+  const status = await NotebookLMClient.checkStatus();
+  if (status.configured) {
+    statusEl.textContent = "NotebookLM connecté";
+    statusEl.className = "calendar-status ok";
+    btn.disabled = false;
+    if (hintEl) hintEl.classList.add("hidden");
+  } else {
+    statusEl.textContent = "NotebookLM non configuré";
+    statusEl.className = "calendar-status warn";
+    btn.disabled = true;
+    if (hintEl) {
+      hintEl.textContent =
+        "Le proxy Cloud Run doit exposer NOTEBOOKLM_API_URL et NOTEBOOKLM_NOTEBOOK_ID. Voir docs/NOTEBOOKLM-MCP.md.";
+      hintEl.classList.remove("hidden");
+    }
+  }
+}
+
+function openEnrichModal() {
+  enrichPendingFiles = [];
+  document.getElementById("enrichFileList").innerHTML = "";
+  document.getElementById("enrichFileInput").value = "";
+  renderEnrichTaskList();
+  document.getElementById("enrichModal").classList.remove("hidden");
+}
+
+function hideEnrichModal() {
+  document.getElementById("enrichModal")?.classList.add("hidden");
+}
+
+function hideEnrichResultModal() {
+  document.getElementById("enrichResultModal")?.classList.add("hidden");
+  enrichResultData = { enrichments: [], newTasks: [] };
+}
+
+async function readEnrichFiles(fileList) {
+  const files = Array.from(fileList || []);
+  const sources = [];
+  for (const file of files.slice(0, 8)) {
+    if (file.size > 800_000) continue;
+    const text = await file.text();
+    if (!text.trim()) continue;
+    sources.push({ title: file.name, text });
+  }
+  return sources;
+}
+
+function phaseOptionsHtml(selectedId) {
+  return PHASES.map(
+    (p) =>
+      `<option value="${escAttr(p.id)}"${p.id === selectedId ? " selected" : ""}>${escHtml(p.title)}</option>`
+  ).join("");
+}
+
+function importTagForStatus(status) {
+  if (status === "duplicate-todo" || status === "duplicate-checklist") {
+    return { className: "tag-duplicate", text: "Doublon" };
+  }
+  if (status === "similar-todo" || status === "similar-checklist") {
+    return { className: "tag-similar", text: "Similaire" };
+  }
+  return { className: "", text: "Nouvelle" };
+}
+
+function showEnrichResults(data) {
+  enrichResultData = data;
+  const enrichments = data.enrichments || [];
+  const newTasks = data.newTasks || [];
+
+  document.getElementById("enrichResultSubtitle").textContent =
+    `${enrichments.length} enrichissement${enrichments.length > 1 ? "s" : ""}, ${newTasks.length} nouvelle${newTasks.length > 1 ? "s" : ""} tâche${newTasks.length > 1 ? "s" : ""} proposée${newTasks.length > 1 ? "s" : ""}.`;
+
+  const enrichEl = document.getElementById("enrichResultEnrichments");
+  enrichEl.innerHTML = enrichments.length
+    ? enrichments
+        .map((item, index) => {
+          const subtasks = normalizeSubtasks(item.subtasks);
+          const subHtml = subtasks.length
+            ? `<ul class="subtasks-list">${subtasks.map((s) => `<li>${escHtml(s.title)}</li>`).join("")}</ul>`
+            : "";
+          return `
+          <div class="enrich-result-card" data-enrich-result="${index}">
+            <label class="checkbox-row">
+              <input type="checkbox" data-enrich-apply-index="${index}" checked />
+              <strong>${escHtml(item.title || item.refId)}</strong>
+              <span class="paste-hint"> (${escHtml(item.kind)})</span>
+            </label>
+            ${item.description ? `<p class="item-desc">${escHtml(item.description)}</p>` : ""}
+            ${item.verify ? `<p class="paste-hint"><strong>Vérifier :</strong> ${escHtml(item.verify)}</p>` : ""}
+            ${item.setup ? `<p class="paste-hint"><strong>Mettre en place :</strong> ${escHtml(item.setup)}</p>` : ""}
+            ${subHtml}
+          </div>`;
+        })
+        .join("")
+    : '<p class="paste-hint">Aucun enrichissement proposé.</p>';
+
+  const newEl = document.getElementById("enrichResultNewTasks");
+  if (!newTasks.length) {
+    newEl.innerHTML = '<p class="paste-hint">Aucune nouvelle tâche suggérée.</p>';
+  } else {
+    newEl.innerHTML = newTasks
+      .map((item, index) => {
+        const tag = importTagForStatus(item.status);
+        const duplicate = item.status?.includes("duplicate");
+        const checked = !duplicate ? "checked" : "";
+        const phaseId = item.phaseId || "project-mgmt";
+        const matchInfo = item.matchTitle
+          ? `<span class="import-tag ${tag.className}">${escHtml(tag.text)} : ${escHtml(item.matchTitle)}</span>`
+          : `<span class="import-tag ${tag.className}">${escHtml(tag.text)}</span>`;
+        return `
+        <div class="import-action-row${duplicate ? " is-duplicate" : ""}" data-new-task-row="${index}">
+          <input type="checkbox" data-new-task-index="${index}" ${checked} aria-label="Importer cette tâche" />
+          <div class="import-action-body import-action-editable">
+            <label class="import-field-label">Titre</label>
+            <input type="text" class="import-title-input" data-new-task-index="${index}" value="${escAttr(item.text)}" maxlength="200" />
+            <label class="import-field-label">Phase</label>
+            <select class="import-phase-select" data-new-task-index="${index}">${phaseOptionsHtml(phaseId)}</select>
+            <label class="import-field-label">Description</label>
+            <textarea class="import-desc-input" data-new-task-index="${index}" rows="2">${escHtml(item.description || "")}</textarea>
+            <label class="import-field-label">Comment vérifier</label>
+            <textarea class="import-verify-input" data-new-task-index="${index}" rows="2">${escHtml(item.verify || "")}</textarea>
+            <label class="import-field-label">Comment mettre en place</label>
+            <textarea class="import-setup-input" data-new-task-index="${index}" rows="2">${escHtml(item.setup || "")}</textarea>
+            <div class="import-action-tags">${matchInfo}</div>
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  hideEnrichModal();
+  document.getElementById("enrichResultModal").classList.remove("hidden");
+}
+
+async function runEnrichment() {
+  const tasks = getSelectedEnrichTasks();
+  if (!tasks.length) {
+    alert("Sélectionnez au moins une tâche à enrichir.");
+    return;
+  }
+
+  const btn = document.getElementById("enrichRunBtn");
+  btn.disabled = true;
+  btn.textContent = "Analyse en cours…";
+
+  try {
+    const fileInput = document.getElementById("enrichFileInput");
+    const uploaded = enrichPendingFiles.length
+      ? enrichPendingFiles
+      : await readEnrichFiles(fileInput.files);
+
+    const result = await NotebookLMClient.enrichTasks({
+      sources: uploaded,
+      tasks,
+      catalogs: getCatalogs(),
+      projectName: store.state.projectName || "",
+    });
+
+    const enrichments = (result.enrichments || []).map((item) => {
+      const source = tasks.find((t) => t.refId === item.refId) || {};
+      return {
+        ...item,
+        title: source.title || item.refId,
+        subtasks: normalizeSubtasks(item.subtasks),
+      };
+    });
+
+    let newTasks = (result.newTasks || []).map((item) => ({
+      text: String(item.text || "").trim(),
+      status: item.status || "new",
+      matchTitle: item.matchTitle,
+      matchId: item.matchId,
+      score: item.score,
+      phaseId: item.phaseId || "project-mgmt",
+      priority: item.priority || "medium",
+      description: item.description || "",
+      verify: item.verify || "",
+      setup: item.setup || "",
+      subtasks: normalizeSubtasks(item.subtasks),
+    }));
+
+    if (newTasks.length && window.GeminiClient?.analyzeActions) {
+      const actionsText = newTasks.map((t) => `- ${t.text}`).join("\n");
+      const analyzed = await GeminiClient.analyzeActions(actionsText, getCatalogs());
+      if (analyzed.length) {
+        newTasks = analyzed.map((item, i) => ({
+          ...newTasks[i],
+          ...item,
+          subtasks: newTasks[i]?.subtasks || normalizeSubtasks(item.subtasks),
+        }));
+      }
+    }
+
+    showEnrichResults({ enrichments, newTasks });
+  } catch (err) {
+    const msg =
+      err.message === "notebooklm_not_configured"
+        ? "NotebookLM n'est pas configuré sur le proxy."
+        : `Erreur NotebookLM : ${err.message || "analyse impossible"}`;
+    alert(msg);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Lancer l'analyse";
+  }
+}
+
+function applyEnrichmentResults() {
+  const enrichments = enrichResultData.enrichments || [];
+  const newTasks = enrichResultData.newTasks || [];
+  const selectedEnrichIndexes = [
+    ...document.querySelectorAll("[data-enrich-apply-index]:checked"),
+  ].map((el) => Number(el.dataset.enrichApplyIndex));
+  const selectedNewIndexes = [
+    ...document.querySelectorAll("[data-new-task-index]:checked"),
+  ].map((el) => Number(el.dataset.newTaskIndex));
+
+  store.patch((state) => {
+    state.itemEnrichments = state.itemEnrichments || {};
+    selectedEnrichIndexes.forEach((index) => {
+      const item = enrichments[index];
+      if (!item?.refId) return;
+      if (item.kind === "checklist") {
+        state.itemEnrichments[item.refId] = {
+          description: item.description || "",
+          verify: item.verify || "",
+          setup: item.setup || "",
+          subtasks: normalizeSubtasks(item.subtasks),
+          enrichedAt: Date.now(),
+          source: "notebooklm",
+        };
+      } else if (item.kind === "todo") {
+        const todo = (state.todos || []).find((t) => t.id === item.refId);
+        if (!todo) return;
+        if (item.description) todo.description = item.description;
+        if (item.verify) todo.verify = item.verify;
+        if (item.setup) todo.setup = item.setup;
+        if (item.subtasks?.length) todo.subtasks = normalizeSubtasks(item.subtasks);
+        todo.enrichmentSource = "notebooklm";
+        todo.updatedAt = Date.now();
+      }
+    });
+
+    selectedNewIndexes.forEach((index) => {
+      const row = document.querySelector(`[data-new-task-row="${index}"]`);
+      const item = newTasks[index];
+      if (!item || !row) return;
+      const title = row.querySelector(".import-title-input")?.value.trim() || item.text;
+      if (!title || title.length < 3) return;
+      const todos = [...(state.todos || [])];
+      todos.unshift({
+        id: PageUtils.newTodoId(),
+        title,
+        description: row.querySelector(".import-desc-input")?.value.trim() || item.description || "",
+        verify: row.querySelector(".import-verify-input")?.value.trim() || item.verify || "",
+        setup: row.querySelector(".import-setup-input")?.value.trim() || item.setup || "",
+        subtasks: item.subtasks || [],
+        phaseId: row.querySelector(".import-phase-select")?.value || item.phaseId || "project-mgmt",
+        priority: item.priority || "medium",
+        done: false,
+        enrichmentSource: "notebooklm",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      state.todos = todos;
+    });
+  });
+
+  hideEnrichResultModal();
+  flashStatus("Enrichissements appliqués");
+  render();
+}
+
 
 function getChecks() {
   return store.state.checks;
@@ -313,6 +755,11 @@ function bindGuideToggle(itemEl, id, isTodo) {
 function renderChecklistItem(item, body) {
   const check = getCheck(item.id);
   const done = isChecked(item.id);
+  const enrichment = getItemEnrichment(item.id);
+  const description = enrichment?.description || item.description;
+  const verify = enrichment?.verify || item.verify;
+  const setup = enrichment?.setup || item.setup;
+  const subtasks = enrichment?.subtasks || [];
   const itemEl = document.createElement("div");
   itemEl.className = `item${done ? " done" : ""}`;
   itemEl.innerHTML = `
@@ -324,9 +771,10 @@ function renderChecklistItem(item, body) {
         <span class="item-title">${escHtml(item.title)}</span>
         <span class="pill pill-${item.priority}">${PRIORITY_LABEL[item.priority]}</span>
         <span class="pill">${escHtml(item.category)}</span>
+        ${enrichment ? '<span class="pill">NotebookLM</span>' : ""}
         <button type="button" class="item-delete-btn" data-item-delete="${escHtml(item.id)}" title="Masquer ce point" aria-label="Masquer ce point">×</button>
       </div>
-      <p class="item-desc">${escHtml(item.description)}</p>
+      <p class="item-desc">${escHtml(description)}</p>
       ${attributionHtml(check)}
       <button type="button" class="guide-toggle" aria-expanded="false">
         <span class="chevron">▶</span> Vérification et mise en place
@@ -334,12 +782,13 @@ function renderChecklistItem(item, body) {
       <div class="guide-body">
         <div class="guide-section">
           <h3>Comment vérifier</h3>
-          <p class="guide-text">${escHtml(item.verify)}</p>
+          <p class="guide-text">${escHtml(verify)}</p>
         </div>
         <div class="guide-section">
           <h3>Comment mettre en place</h3>
-          <p class="guide-text">${escHtml(item.setup)}</p>
+          <p class="guide-text">${escHtml(setup)}</p>
         </div>
+        ${renderSubtasksHtml(subtasks, item.id)}
       </div>
     </div>
   `;
@@ -351,6 +800,7 @@ function renderChecklistItem(item, body) {
     deleteChecklistItem(item.id);
   });
   bindGuideToggle(itemEl, item.id, false);
+  bindSubtaskToggles(itemEl, "checklist");
   body.appendChild(itemEl);
 }
 
@@ -364,7 +814,8 @@ function renderTodoItem(todo, body) {
       : "";
   const desc = todo.description ? `<p class="item-desc">${escHtml(todo.description)}</p>` : "";
   const priority = todo.priority || "medium";
-  const pillLabel = todo.weeklyId ? "Action CR" : "Tâche libre";
+  const pillLabel = todo.weeklyId ? "Action CR" : todo.enrichmentSource === "notebooklm" ? "NotebookLM" : "Tâche libre";
+  const subtasks = todo.subtasks || [];
 
   const itemEl = document.createElement("div");
   itemEl.className = `item custom-todo${todo.done ? " done" : ""}`;
@@ -394,6 +845,7 @@ function renderTodoItem(todo, body) {
           <h3>Comment mettre en place</h3>
           <p class="guide-text">${todo.setup ? escHtml(todo.setup) : '<em class="guide-empty">À compléter</em>'}</p>
         </div>
+        ${renderSubtasksHtml(subtasks, todo.id)}
       </div>
     </div>
   `;
@@ -405,6 +857,7 @@ function renderTodoItem(todo, body) {
     deleteCustomTodo(todo.id);
   });
   bindGuideToggle(itemEl, todo.id, true);
+  bindSubtaskToggles(itemEl, "todo");
   body.appendChild(itemEl);
 }
 
@@ -664,11 +1117,41 @@ function setupUI() {
     if (isHidden) document.getElementById("newTaskTitle").focus();
   });
   document.getElementById("addTaskForm").addEventListener("submit", addManualTask);
+
+  document.getElementById("openEnrichBtn")?.addEventListener("click", openEnrichModal);
+  document.getElementById("enrichCancelBtn")?.addEventListener("click", hideEnrichModal);
+  document.getElementById("enrichRunBtn")?.addEventListener("click", runEnrichment);
+  document.getElementById("enrichResultSkipBtn")?.addEventListener("click", hideEnrichResultModal);
+  document.getElementById("enrichResultApplyBtn")?.addEventListener("click", applyEnrichmentResults);
+  document.getElementById("enrichSelectCritical")?.addEventListener("click", () => {
+    document.querySelectorAll("#enrichTaskList [data-enrich-ref]").forEach((el) => {
+      const p = el.dataset.enrichPriority;
+      el.checked = p === "critical" || p === "high";
+    });
+  });
+  document.getElementById("enrichSelectAll")?.addEventListener("click", () => {
+    document.querySelectorAll("#enrichTaskList [data-enrich-ref]").forEach((el) => {
+      el.checked = true;
+    });
+  });
+  document.getElementById("enrichSelectNone")?.addEventListener("click", () => {
+    document.querySelectorAll("#enrichTaskList [data-enrich-ref]").forEach((el) => {
+      el.checked = false;
+    });
+  });
+  document.getElementById("enrichFileInput")?.addEventListener("change", async (e) => {
+    enrichPendingFiles = await readEnrichFiles(e.target.files);
+    const list = document.getElementById("enrichFileList");
+    if (list) {
+      list.innerHTML = enrichPendingFiles.map((f) => `<li>${escHtml(f.title)}</li>`).join("");
+    }
+  });
 }
 
 async function initApp() {
   store.subscribe(onStoreChange);
   const status = await store.init();
+  updateNotebookLMUI();
 
   const todosNeedPhase = (store.state.todos || []).some((t) => !t.phaseId);
   if (todosNeedPhase && window.ActionMatcher?.guessPhaseId) {

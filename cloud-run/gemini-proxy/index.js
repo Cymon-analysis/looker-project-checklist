@@ -1,9 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const { GoogleAuth } = require("google-auth-library");
+const { registerNotebookLMRoutes, healthInfo: notebooklmHealth } = require("./notebooklm");
 
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
 
 const PROJECT_ID = process.env.GCP_PROJECT_ID || "lab-fileparser";
 const LOCATION = process.env.GCP_LOCATION || "europe-west1";
@@ -224,18 +225,75 @@ function meetingSummary(event) {
   };
 }
 
+async function generateJsonVertex(systemPrompt, userContent, options = {}) {
+  const { model, temperature = 0.1 } = options;
+  const preferred = model || DEFAULT_MODEL;
+  const candidates = [preferred, ...MODEL_FALLBACKS].filter((m, i, arr) => arr.indexOf(m) === i);
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `${systemPrompt}\n\n---\n\n${userContent}` }],
+      },
+    ],
+    generationConfig: {
+      temperature,
+      responseMimeType: "application/json",
+    },
+  };
+
+  let lastStatus = 500;
+  let lastBody = "";
+
+  for (const modelId of candidates) {
+    try {
+      const result = await callVertex(modelId, payload);
+      lastStatus = result.status;
+      lastBody = result.text;
+
+      if (!result.ok) {
+        if ([404, 429, 503].includes(result.status)) continue;
+        throw new Error(`vertex_${result.status}`);
+      }
+
+      const data = JSON.parse(result.text);
+      const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!responseText) continue;
+
+      const fenced = String(responseText).trim().match(/```(?:json)?\s*([\s\S]*?)```/);
+      const candidate = fenced ? fenced[1].trim() : String(responseText).trim();
+      return JSON.parse(candidate);
+    } catch (err) {
+      lastBody = String(err.message || err);
+    }
+  }
+
+  const err = new Error("vertex_all_models_failed");
+  err.status = lastStatus;
+  err.body = lastBody.slice(0, 300);
+  throw err;
+}
+
+function checkProxySecret(req) {
+  if (!PROXY_SECRET) return true;
+  return req.headers["x-gemini-proxy-secret"] === PROXY_SECRET;
+}
+
 app.get("/health", (_req, res) => {
+  const nblm = notebooklmHealth();
   res.json({
     ok: true,
     project: PROJECT_ID,
     location: LOCATION,
     calendar: true,
+    notebooklm: nblm.configured,
     allowedDomain: ALLOWED_EMAIL_DOMAIN,
   });
 });
 
 app.post("/v1/generate", async (req, res) => {
-  if (PROXY_SECRET && req.headers["x-gemini-proxy-secret"] !== PROXY_SECRET) {
+  if (!checkProxySecret(req)) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
@@ -406,6 +464,11 @@ app.get("/v1/calendar/events/:eventId", async (req, res) => {
     }
     res.status(err.status || 500).json({ error: err.message, details: err.body });
   }
+});
+
+registerNotebookLMRoutes(app, {
+  checkProxySecret,
+  generateJson: generateJsonVertex,
 });
 
 const port = Number(process.env.PORT || 8080);
