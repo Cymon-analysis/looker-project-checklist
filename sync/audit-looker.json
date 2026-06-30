@@ -117,7 +117,8 @@
   },
   "itemEnrichments": {},
   "openPhases": [
-    "lookml"
+    "lookml",
+    "governance"
   ],
-  "updatedAt": 1782824082828
+  "updatedAt": 1782824083879
 }
