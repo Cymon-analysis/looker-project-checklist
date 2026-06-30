@@ -197,8 +197,15 @@ async function updateNotebookLMUI() {
     statusEl.className = "calendar-status warn";
     btn.disabled = true;
     if (hintEl) {
+      const hints = {
+        proxy_outdated:
+          "Le proxy Cloud Run doit être redéployé (routes NotebookLM manquantes). Voir ci-dessous.",
+        unreachable: "Proxy inaccessible. Vérifiez votre connexion.",
+        status_error: "Proxy joignable mais NotebookLM non paramétré.",
+      };
       hintEl.textContent =
-        "Démarrez une session (PC : notebooklm-session.ps1, ou VM : notebooklm-vm-start.sh). Voir docs/NOTEBOOKLM-ECONOMIQUE.md.";
+        hints[status.reason] ||
+        "Lancez .\\scripts\\notebooklm-session.ps1 sur votre PC et laissez le terminal ouvert, puis Ctrl+F5.";
       hintEl.classList.remove("hidden");
     }
   }
@@ -1119,6 +1126,7 @@ function setupUI() {
   document.getElementById("addTaskForm").addEventListener("submit", addManualTask);
 
   document.getElementById("openEnrichBtn")?.addEventListener("click", openEnrichModal);
+  document.getElementById("refreshNotebooklmBtn")?.addEventListener("click", () => updateNotebookLMUI());
   document.getElementById("enrichCancelBtn")?.addEventListener("click", hideEnrichModal);
   document.getElementById("enrichRunBtn")?.addEventListener("click", runEnrichment);
   document.getElementById("enrichResultSkipBtn")?.addEventListener("click", hideEnrichResultModal);

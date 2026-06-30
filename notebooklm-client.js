@@ -14,8 +14,22 @@
   async function checkStatus() {
     if (!proxyUrl()) return { ok: false, configured: false, reason: "no_proxy" };
     try {
+      const healthRes = await fetch(`${proxyUrl()}/health`);
+      if (healthRes.ok) {
+        const health = await healthRes.json().catch(() => ({}));
+        if (health.notebooklm === false || health.notebooklm === undefined) {
+          const statusRes = await fetch(`${proxyUrl()}/v1/notebooklm/status`);
+          if (statusRes.status === 404) {
+            return { ok: false, configured: false, reason: "proxy_outdated" };
+          }
+        }
+      }
+
       const res = await fetch(`${proxyUrl()}/v1/notebooklm/status`);
-      if (!res.ok) return { ok: false, configured: false, reason: "status_error" };
+      if (res.status === 404) {
+        return { ok: false, configured: false, reason: "proxy_outdated" };
+      }
+      if (!res.ok) return { ok: false, configured: false, reason: "status_error", status: res.status };
       return await res.json();
     } catch {
       return { ok: false, configured: false, reason: "unreachable" };
