@@ -325,6 +325,26 @@ Réponds UNIQUEMENT en JSON: {"notesMarkdown":"...","actions":["..."]}`;
     }
   }
 
+  const VALID_PHASE_IDS = new Set([
+    "project-mgmt",
+    "infra",
+    "governance",
+    "lookml",
+    "cicd",
+    "content",
+    "adoption",
+    "platform",
+  ]);
+
+  function phaseCatalogText() {
+    const phases = window.CHECKLIST_DATA?.PHASES || [];
+    return phases.map((p) => `- "${p.id}": ${p.title}`).join("\n");
+  }
+
+  function normalizePhaseId(value) {
+    return VALID_PHASE_IDS.has(value) ? value : "project-mgmt";
+  }
+
   function normalizeGeminiItem(item) {
     const status = item.status || "new";
     const allowed = [
@@ -340,6 +360,12 @@ Réponds UNIQUEMENT en JSON: {"notesMarkdown":"...","actions":["..."]}`;
       matchTitle: item.matchTitle ? String(item.matchTitle) : undefined,
       matchId: item.matchId ? String(item.matchId) : undefined,
       score: typeof item.score === "number" ? item.score : 0,
+      phaseId: item.phaseId
+        ? normalizePhaseId(item.phaseId)
+        : window.ActionMatcher?.guessPhaseId?.(item.text, item.description) || "project-mgmt",
+      description: String(item.description || "").trim(),
+      verify: String(item.verify || "").trim(),
+      setup: String(item.setup || "").trim(),
     };
   }
 
@@ -399,6 +425,11 @@ Pour CHAQUE action (même nombre d'entrées que la liste), retourne un objet dan
 - "matchTitle": si status != "new"
 - "matchId": si connu
 - "score": 0 à 1
+- "phaseId": phase du projet Looker la plus pertinente parmi:
+${phaseCatalogText()}
+- "description": contexte court (optionnel)
+- "verify": comment vérifier (optionnel)
+- "setup": comment mettre en place (optionnel)
 
 Réponds UNIQUEMENT en JSON: {"items":[...]}`;
 
@@ -420,12 +451,61 @@ Réponds UNIQUEMENT en JSON: {"items":[...]}`;
     return window.ActionMatcher.analyzeActions(actionsBlock, catalogs);
   }
 
+  async function categorizeTasks(items) {
+    const list = (items || [])
+      .map((item) => ({
+        title: String(item.title || item.text || "").trim(),
+        description: String(item.description || "").trim(),
+      }))
+      .filter((item) => item.title);
+
+    if (!list.length) return [];
+
+    if (!isEnabled()) {
+      return list.map((item) => ({
+        phaseId: window.ActionMatcher.guessPhaseId(item.title, item.description),
+        priority: "medium",
+      }));
+    }
+
+    const systemPrompt = `Tu classes des tâches d'un projet Looker / data en français.
+Pour chaque tâche, choisis la phase la plus pertinente parmi:
+${phaseCatalogText()}
+
+Réponds UNIQUEMENT en JSON:
+{"items":[{"phaseId":"...", "priority":"critical|high|medium", "reason":"..."}]}
+Même nombre d'entrées que la liste fournie.`;
+
+    const userContent = list
+      .map((item, index) => `${index + 1}. ${item.title}${item.description ? ` — ${item.description}` : ""}`)
+      .join("\n");
+
+    try {
+      const result = await generateJson(systemPrompt, userContent);
+      const rows = Array.isArray(result.items) ? result.items : [];
+      return list.map((item, index) => {
+        const row = rows[index] || {};
+        return {
+          phaseId: normalizePhaseId(row.phaseId) || window.ActionMatcher.guessPhaseId(item.title, item.description),
+          priority: ["critical", "high", "medium"].includes(row.priority) ? row.priority : "medium",
+          reason: row.reason ? String(row.reason) : "",
+        };
+      });
+    } catch {
+      return list.map((item) => ({
+        phaseId: window.ActionMatcher.guessPhaseId(item.title, item.description),
+        priority: "medium",
+      }));
+    }
+  }
+
   window.GeminiClient = {
     isEnabled,
     getLastError,
     getLastModelUsed,
     splitWeeklyText,
     analyzeActions,
+    categorizeTasks,
     extractActionsFromText,
     heuristicSplit,
   };

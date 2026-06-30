@@ -1,6 +1,6 @@
 const SYNC = window.SYNC_CONFIG || { enabled: false };
 const POLL_MS = 3000;
-const { ITEMS } = window.CHECKLIST_DATA || { ITEMS: [] };
+const { ITEMS, PHASES } = window.CHECKLIST_DATA || { ITEMS: [], PHASES: [] };
 
 const roomId = PageUtils.getRoomIdFromUrl();
 const store = RoomStore.create(roomId, SYNC);
@@ -12,10 +12,8 @@ let importAnalysis = [];
 let importUsedGemini = false;
 let pasteAnalyzeTimer = null;
 let isAnalyzingPaste = false;
-let pendingDeleteId = null;
-let isDeleting = false;
 
-const APP_BUILD = "20250629-8";
+const APP_BUILD = "20250629-9";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -143,12 +141,15 @@ function formatDisplayDate(iso) {
   });
 }
 
-function newWeeklyId() {
-  return `w-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+function phaseOptionsHtml(selectedId) {
+  return PHASES.map(
+    (p) =>
+      `<option value="${escHtml(p.id)}"${p.id === selectedId ? " selected" : ""}>${escHtml(p.title)}</option>`
+  ).join("");
 }
 
-function newTodoId() {
-  return `todo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+function newWeeklyId() {
+  return `w-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 function setSyncStatus(kind, label) {
@@ -239,7 +240,7 @@ async function showImportModal(weekly) {
 
   document.getElementById("importModalTitle").innerHTML = `Ajouter les actions à la todo ?${aiBadge}`;
   document.getElementById("importModalSubtitle").textContent =
-    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Modifiez le titre et la description ci-dessous avant d'importer.`;
+    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Modifiez le titre, la phase et la description avant d'importer.`;
 
   const list = document.getElementById("importActionsList");
   list.innerHTML = parsed
@@ -251,12 +252,16 @@ async function showImportModal(weekly) {
         : `<span class="import-tag ${tag.className}">${escHtml(tag.text)}</span>`;
       const checked = duplicate ? "" : "checked";
 
+      const phaseId = item.phaseId || ActionMatcher.guessPhaseId(item.text, item.description);
+
       return `
         <div class="import-action-row${duplicate ? " is-duplicate" : ""}" data-import-row="${index}">
           <input type="checkbox" data-import-index="${index}" ${checked} aria-label="Importer cette action" />
           <div class="import-action-body import-action-editable">
             <label class="import-field-label" for="import-title-${index}">Titre de la tâche</label>
             <input type="text" id="import-title-${index}" class="import-title-input" data-import-index="${index}" value="${escAttr(item.text)}" maxlength="200" />
+            <label class="import-field-label" for="import-phase-${index}">Phase du projet</label>
+            <select id="import-phase-${index}" class="import-phase-select" data-import-index="${index}">${phaseOptionsHtml(phaseId)}</select>
             <label class="import-field-label" for="import-desc-${index}">Contexte / description</label>
             <textarea id="import-desc-${index}" class="import-desc-input" data-import-index="${index}" rows="2" placeholder="Précisez le pourquoi ou le périmètre de l'action…">${escHtml(item.description || "")}</textarea>
             <label class="import-field-label" for="import-verify-${index}">Comment vérifier</label>
@@ -306,6 +311,8 @@ function collectSelectedImports() {
       description: row.querySelector(".import-desc-input")?.value.trim() || "",
       verify: row.querySelector(".import-verify-input")?.value.trim() || "",
       setup: row.querySelector(".import-setup-input")?.value.trim() || "",
+      phaseId: row.querySelector(".import-phase-select")?.value || item.phaseId || "project-mgmt",
+      priority: item.priority || "medium",
     });
   });
   return selected;
@@ -320,13 +327,18 @@ function confirmImport() {
     if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
     store.patch((state) => {
       const todos = [...(state.todos || [])];
+      const openedPhases = new Set(state.openPhases || []);
       selected.forEach((item) => {
+        const phaseId = item.phaseId || "project-mgmt";
+        openedPhases.add(phaseId);
         todos.unshift({
-          id: newTodoId(),
+          id: PageUtils.newTodoId(),
           title: item.title || item.text,
           description: item.description || "",
           verify: item.verify || "",
           setup: item.setup || "",
+          phaseId,
+          priority: item.priority || "medium",
           weeklyId: pendingImportWeekly.id,
           weeklyTitle: pendingImportWeekly.title,
           weeklyDate: pendingImportWeekly.date,
@@ -336,6 +348,7 @@ function confirmImport() {
         });
       });
       state.todos = todos;
+      state.openPhases = [...openedPhases];
       const weekly = (state.weeklies || []).find((w) => w.id === pendingImportWeekly.id);
       if (weekly) weekly.actionsImportedHash = ActionMatcher.hashActions(weekly.actions);
     });
@@ -464,50 +477,14 @@ async function saveWeeklyFromForm(e) {
   });
 }
 
-function askDeleteWeekly(id) {
-  if (isDeleting) return;
-  const weekly = getWeeklies().find((w) => w.id === id);
-  if (!weekly) return;
-  pendingDeleteId = id;
-  document.getElementById("deleteModalText").textContent =
-    `« ${weekly.title} » sera supprimé définitivement.`;
-  document.getElementById("deleteModal").classList.remove("hidden");
-}
-
-function hideDeleteModal() {
-  pendingDeleteId = null;
-  document.getElementById("deleteModal").classList.add("hidden");
-}
-
-async function confirmDeleteWeekly() {
-  const id = pendingDeleteId;
-  if (!id || isDeleting) return;
-
-  isDeleting = true;
-  hideDeleteModal();
-  document.getElementById("deleteConfirmBtn").disabled = true;
-
-  try {
-    if (syncEnabled) setSyncStatus("connecting", "Suppression…");
-    store.patch(
-      (state) => {
-        state.deletedWeeklyIds = state.deletedWeeklyIds || {};
-        state.deletedWeeklyIds[id] = Date.now();
-        state.weeklies = (state.weeklies || []).filter((w) => w.id !== id);
-      },
-      { save: false }
-    );
-    if (editingId === id) hideForm();
-    if (syncEnabled) {
-      await store.queueSave();
-      setSyncStatus("synced", "Synchronisé");
-    }
-  } catch {
-    if (syncEnabled) setSyncStatus("error", "Erreur suppression");
-  } finally {
-    isDeleting = false;
-    document.getElementById("deleteConfirmBtn").disabled = false;
-  }
+function deleteWeekly(id) {
+  store.patch((state) => {
+    state.deletedWeeklyIds = state.deletedWeeklyIds || {};
+    state.deletedWeeklyIds[id] = Date.now();
+    state.weeklies = (state.weeklies || []).filter((w) => w.id !== id);
+  });
+  if (editingId === id) hideForm();
+  if (syncEnabled) setSyncStatus("synced", "CR supprimé");
 }
 
 function renderWeeklies() {
@@ -574,7 +551,7 @@ function handleWeeklyListClick(e) {
 
   const deleteBtn = e.target.closest("[data-delete]");
   if (deleteBtn) {
-    askDeleteWeekly(deleteBtn.dataset.delete);
+    deleteWeekly(deleteBtn.dataset.delete);
     return;
   }
 
@@ -619,8 +596,6 @@ document.getElementById("importSelectAll").addEventListener("click", () => setAl
 document.getElementById("importSelectNone").addEventListener("click", () => setAllImportChecks(false));
 document.getElementById("importConfirmBtn").addEventListener("click", confirmImport);
 document.getElementById("importSkipBtn").addEventListener("click", skipImport);
-document.getElementById("deleteCancelBtn").addEventListener("click", hideDeleteModal);
-document.getElementById("deleteConfirmBtn").addEventListener("click", confirmDeleteWeekly);
 
 store.subscribe(() => renderWeeklies());
 

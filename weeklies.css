@@ -249,7 +249,8 @@
 .import-title-input,
 .import-desc-input,
 .import-verify-input,
-.import-setup-input {
+.import-setup-input,
+.import-phase-select {
   width: 100%;
   padding: 8px 10px;
   background: var(--surface);
@@ -264,7 +265,8 @@
 .import-title-input:focus,
 .import-desc-input:focus,
 .import-verify-input:focus,
-.import-setup-input:focus {
+.import-setup-input:focus,
+.import-phase-select:focus {
   outline: none;
   border-color: var(--accent);
 }

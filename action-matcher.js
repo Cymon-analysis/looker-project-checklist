@@ -101,6 +101,60 @@
     return normalizeText(text);
   }
 
+  const PHASE_KEYWORDS = {
+    "project-mgmt": [
+      "weekly", "cadrage", "kickoff", "documentation", "converteo", "accès", "accès",
+      "projet", "atelier", "rituel", "partage", "gcp", "dataform",
+    ],
+    infra: [
+      "connexion", "bigquery", "bq", "scratch", "pdt", "ssl", "réseau", "ip", "warehouse",
+      "dwh", "snowflake", "postgres", "kms", "tls", "whitelisting", "compte de service",
+    ],
+    governance: [
+      "sso", "saml", "oidc", "rôle", "roles", "permission", "groupe", "iam", "rls",
+      "user attribute", "model set", "dossier", "accès", "embed", "api3",
+    ],
+    lookml: [
+      "lookml", "explore", "vue", "view", "datagroup", "primary_key", "join", "mesure",
+      "dimension", "pdt", "derived", "manifest", "lams", "sémantique",
+    ],
+    cicd: [
+      "git", "github", "gitlab", "pr", "pull request", "ci", "cd", "deploy", "release",
+      "branch", "spectacles", "linter", "secret", "content validator",
+    ],
+    content: [
+      "dashboard", "monitoring", "performance", "system activity", "requête", "query",
+      "coût", "cost", "sla", "fraîcheur", "alerte", "pdt", "contenu",
+    ],
+    adoption: [
+      "formation", "train", "ambassadeur", "adoption", "glossaire", "kpi", "support",
+      "slack", "schedule", "envoi", "métier", "enablement",
+    ],
+    platform: [
+      "licence", "instance", "rgpd", "pii", "siem", "reprise", "dr", "bcp", "homepage",
+      "conformité", "plateforme", "audit",
+    ],
+  };
+
+  function guessPhaseId(title, description = "") {
+    const text = normalizeText(`${title} ${description}`);
+    let best = "project-mgmt";
+    let bestScore = 0;
+
+    Object.entries(PHASE_KEYWORDS).forEach(([phaseId, keywords]) => {
+      let score = 0;
+      keywords.forEach((keyword) => {
+        if (text.includes(normalizeText(keyword))) score += 1;
+      });
+      if (score > bestScore) {
+        bestScore = score;
+        best = phaseId;
+      }
+    });
+
+    return best;
+  }
+
   /**
    * @param {string} actionText
    * @param {{ todos: object[], checklistItems: object[] }} catalogs
@@ -138,6 +192,10 @@
           matchTitle: bestTodo.item.title,
           matchId: bestTodo.item.id,
           score: bestTodo.score,
+          phaseId: bestTodo.item.phaseId || guessPhaseId(text),
+          description: "",
+          verify: "",
+          setup: "",
         };
       }
 
@@ -148,22 +206,41 @@
           matchTitle: bestChecklist.item.title,
           matchId: bestChecklist.item.id,
           score: bestChecklist.score,
+          phaseId: bestChecklist.item.phaseId || guessPhaseId(text),
+          description: "",
+          verify: "",
+          setup: "",
         };
       }
 
       if (bestTodo.score >= SIMILAR_THRESHOLD || bestChecklist.score >= SIMILAR_THRESHOLD) {
         const useTodo = bestTodo.score >= bestChecklist.score;
         const match = useTodo ? bestTodo : bestChecklist;
+        const phaseId = useTodo
+          ? match.item.phaseId || guessPhaseId(text)
+          : match.item.phaseId || guessPhaseId(text);
         return {
           text,
           status: useTodo ? "similar-todo" : "similar-checklist",
           matchTitle: match.item.title,
           matchId: match.item.id,
           score: match.score,
+          phaseId,
+          description: "",
+          verify: "",
+          setup: "",
         };
       }
 
-      return { text, status: "new", score: 0 };
+      return {
+        text,
+        status: "new",
+        score: 0,
+        phaseId: guessPhaseId(text),
+        description: "",
+        verify: "",
+        setup: "",
+      };
     });
   }
 
@@ -173,5 +250,6 @@
     hashActions,
     similarityScore,
     normalizeText,
+    guessPhaseId,
   };
 })();

@@ -17,4 +17,8 @@ function getRoomIdFromUrl() {
   return room.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
 }
 
-window.PageUtils = { setupPageNav, getRoomIdFromUrl };
+function newTodoId() {
+  return `todo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+window.PageUtils = { setupPageNav, getRoomIdFromUrl, newTodoId };

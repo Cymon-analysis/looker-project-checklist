@@ -41,15 +41,36 @@ function phaseItems(phaseId) {
   return ITEMS.filter((i) => i.phaseId === phaseId);
 }
 
+function visibleChecklistItems() {
+  const deleted = store.state.deletedItemIds || {};
+  return ITEMS.filter((item) => !deleted[item.id]);
+}
+
+function phaseTodos(phaseId) {
+  return (store.state.todos || []).filter((t) => (t.phaseId || "project-mgmt") === phaseId);
+}
+
 function phaseProgress(phaseId) {
-  const items = phaseItems(phaseId);
-  const done = items.filter((i) => checks()[i.id]?.checked).length;
-  return { done, total: items.length };
+  const items = visibleChecklistItems().filter((i) => i.phaseId === phaseId);
+  const todos = phaseTodos(phaseId);
+  const itemsDone = items.filter((i) => checks()[i.id]?.checked).length;
+  const todosDone = todos.filter((t) => t.done).length;
+  return {
+    done: itemsDone + todosDone,
+    total: items.length + todos.length,
+    itemsDone,
+    todosDone,
+    itemCount: items.length,
+    todoCount: todos.length,
+  };
 }
 
 function globalProgress() {
-  const done = ITEMS.filter((i) => checks()[i.id]?.checked).length;
-  return { done, total: ITEMS.length };
+  const items = visibleChecklistItems();
+  const todos = store.state.todos || [];
+  const itemsDone = items.filter((i) => checks()[i.id]?.checked).length;
+  const todosDone = todos.filter((t) => t.done).length;
+  return { done: itemsDone + todosDone, total: items.length + todos.length };
 }
 
 function phaseStatus(phaseId) {
@@ -273,11 +294,12 @@ function renderGrid() {
 function showPhaseDetail(phaseId) {
   selectedPhaseId = phaseId;
   const phase = PHASES.find((p) => p.id === phaseId);
-  const items = phaseItems(phaseId);
+  const items = visibleChecklistItems().filter((i) => i.phaseId === phaseId);
+  const todos = phaseTodos(phaseId);
   const { done, total } = phaseProgress(phaseId);
 
   document.getElementById("detailTitle").textContent = `${phase.title} — ${done}/${total} validés`;
-  document.getElementById("detailList").innerHTML = items
+  const checklistHtml = items
     .map((item) => {
       const checked = !!checks()[item.id]?.checked;
       return `
@@ -285,13 +307,30 @@ function showPhaseDetail(phaseId) {
           <div class="detail-check ${checked ? "done" : "pending"}">${checked ? "✓" : ""}</div>
           <div>
             <div class="detail-item-title">${escHtml(item.title)}</div>
-            <div class="detail-item-sub">${escHtml(item.category)} · ${item.priority}</div>
+            <div class="detail-item-sub">${escHtml(item.category)} · ${item.priority} · Checklist</div>
           </div>
         </div>
       `;
     })
     .join("");
 
+  const todosHtml = todos
+    .map((todo) => {
+      const checked = !!todo.done;
+      const source = todo.weeklyTitle ? `CR : ${todo.weeklyTitle}` : "Tâche libre";
+      return `
+        <div class="detail-item${checked ? " done" : ""}">
+          <div class="detail-check ${checked ? "done" : "pending"}">${checked ? "✓" : ""}</div>
+          <div>
+            <div class="detail-item-title">${escHtml(todo.title)}</div>
+            <div class="detail-item-sub">${escHtml(source)} · ${todo.priority || "medium"}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  document.getElementById("detailList").innerHTML = checklistHtml + todosHtml;
   document.getElementById("phaseDetail").classList.remove("hidden");
 }
 
@@ -308,7 +347,6 @@ function render() {
 }
 
 function resetLayout() {
-  if (!confirm("Réinitialiser le planning sur 2,5 semaines ?")) return;
   store.patch(
     (state) => {
       state.roadmap.layout = structuredClone(DEFAULT_LAYOUT);

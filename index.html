@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Checklist Projet Looker et Couche Sémantique</title>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body>
   <div id="nameModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -116,12 +116,30 @@
 
     <div id="callout"></div>
 
-    <div id="customTodosSection" class="card hidden">
+    <div class="card" id="addTaskCard">
       <div class="card-header">
-        <span>Actions issues des weekly</span>
-        <span id="customTodosCount" class="phase-count"></span>
+        <span>Ajouter une tâche</span>
+        <button type="button" id="toggleAddTaskBtn" class="btn-secondary">+ Nouvelle tâche</button>
       </div>
-      <div id="customTodosList"></div>
+      <form id="addTaskForm" class="add-task-form hidden">
+        <div class="grid-2">
+          <div>
+            <label class="field-label" for="newTaskTitle">Titre de la tâche</label>
+            <input type="text" id="newTaskTitle" placeholder="ex. Valider le modèle LookML finance" maxlength="200" required />
+          </div>
+          <div>
+            <label class="field-label" for="newTaskPhase">Phase (Gemini propose automatiquement si activé)</label>
+            <select id="newTaskPhase"></select>
+          </div>
+        </div>
+        <div>
+          <label class="field-label" for="newTaskDesc">Description / contexte</label>
+          <textarea id="newTaskDesc" rows="2" placeholder="Précisez le périmètre ou le livrable attendu…"></textarea>
+        </div>
+        <div class="add-task-actions">
+          <button type="submit" class="btn-primary" id="addTaskSubmitBtn">Ajouter la tâche</button>
+        </div>
+      </form>
     </div>
 
     <h2 id="itemsHeading">Points de contrôle</h2>
@@ -141,10 +159,13 @@
     <footer id="footer"></footer>
   </div>
 
-  <script src="sync-config.js?v=8"></script>
-  <script src="room-store.js?v=8"></script>
-  <script src="page-utils.js?v=8"></script>
-  <script src="data.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="sync-config.js?v=9"></script>
+  <script src="gemini-config.js?v=9"></script>
+  <script src="room-store.js?v=9"></script>
+  <script src="page-utils.js?v=9"></script>
+  <script src="data.js?v=9"></script>
+  <script src="action-matcher.js?v=9"></script>
+  <script src="gemini-client.js?v=9"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

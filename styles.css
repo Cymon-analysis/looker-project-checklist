@@ -168,10 +168,45 @@ button:hover { background: var(--surface2); color: var(--text); }
 .item-check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 .item-content { flex: 1; min-width: 0; }
 .item-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
-.todo-delete-btn {
+.item-delete-btn {
   margin-left: auto;
-  font-size: 0.75rem;
-  padding: 4px 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.item-delete-btn:hover {
+  color: var(--critical);
+  border-color: rgba(232, 93, 117, 0.5);
+  background: rgba(232, 93, 117, 0.08);
+}
+.add-task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.add-task-form textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  resize: vertical;
+}
+.add-task-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 .item-title { font-weight: 600; font-size: 0.9375rem; }
 .item.done .item-title { text-decoration: line-through; color: var(--text3); }
