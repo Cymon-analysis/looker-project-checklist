@@ -14,9 +14,9 @@
       "at": 1782763482978
     },
     "pm-01": {
-      "checked": true,
+      "checked": false,
       "by": "Simon",
-      "at": 1782763496311
+      "at": 1782804967798
     }
   },
   "roadmap": {
@@ -57,26 +57,16 @@
     "startDate": "2026-06-29",
     "updatedAt": 1782767457930
   },
-  "weeklies": [
-    {
-      "id": "w-1782769921964-qj2td",
-      "date": "2026-06-29",
-      "title": "Kickoff",
-      "participants": "",
-      "notes": "## Contexte\n\nLa phase de cadrage rapide vise ÃÂ  rÃÂ©capituler les attentes du client et ÃÂ  rÃÂ©aliser un audit technique. Le client a dÃÂ©jÃÂ  identifiÃÂ© ses besoins.\n\n## Points de Suivi OpÃÂ©rationnel\n\n- Deux points hebdomadaires seront mis en place, sans la participation de CÃÂ©dric :\n  - Mercredi ÃÂ  **15h**\n  - Vendredi ÃÂ  **14h**\n- Un point mensuel avec Hamza, Alexandre et CÃÂ©dric est prÃÂ©vu, en rÃÂ©utilisant un des crÃÂ©neaux des points hebdomadaires.\n\n## Points SpÃÂ©cifiques\n\n- Un point sera rÃÂ©alisÃÂ© avec les ÃÂ©quipes mÃÂ©tier pour valider l'ÃÂ©tape d'ÃÂ©vangÃÂ©lisation et les dashboards (politique).\n- La mise en place de la RLS (Row Level Security) est ÃÂ  prÃÂ©voir dÃÂ¨s le dÃÂ©marrage du projet. Aucune documentation n'existe actuellement sur ce sujet.\n- L'aspect IA devra ÃÂªtre discutÃÂ© pour dÃÂ©terminer s'il fait partie du pÃÂ©rimÃÂ¨tre du projet.",
-      "actions": "- Planifier les deux points hebdomadaires (mercredi 15h, vendredi 14h)\n- Planifier le point mensuel avec Hamza, Alexandre et CÃÂ©dric\n- Organiser un point avec les ÃÂ©quipes mÃÂ©tier pour valider l'ÃÂ©vangÃÂ©lisation et les dashboards\n- PrÃÂ©voir la mise en place de la RLS dÃÂ¨s le dÃÂ©marrage du projet\n- Discuter de l'intÃÂ©gration de l'aspect IA dans le pÃÂ©rimÃÂ¨tre du projet",
-      "updatedAt": 1782769921964,
-      "createdAt": 1782769921964
-    }
-  ],
+  "weeklies": [],
   "todos": [],
-  "deletedWeeklyIds": {},
+  "deletedWeeklyIds": {
+    "w-1782769921964-qj2td": 1782808692461
+  },
   "deletedTodoIds": {},
   "openPhases": [
     "infra",
     "lookml",
-    "project-mgmt",
-    "governance"
+    "project-mgmt"
   ],
-  "updatedAt": 1782805938660
+  "updatedAt": 1782808692461
 }
