@@ -63,8 +63,8 @@
       "date": "2026-06-29",
       "title": "Kickoff",
       "participants": "",
-      "notes": "## Contexte\n\nLa phase de cadrage rapide vise à récapituler les attentes du client et à réaliser un audit technique. Le client a déjà identifié ses besoins.\n\n## Points de Suivi Opérationnel\n\n- Deux points hebdomadaires seront mis en place, sans la participation de Cédric :\n  - Mercredi à **15h**\n  - Vendredi à **14h**\n- Un point mensuel avec Hamza, Alexandre et Cédric est prévu, en réutilisant un des créneaux des points hebdomadaires.\n\n## Points Spécifiques\n\n- Un point sera réalisé avec les équipes métier pour valider l'étape d'évangélisation et les dashboards (politique).\n- La mise en place de la RLS (Row Level Security) est à prévoir dès le démarrage du projet. Aucune documentation n'existe actuellement sur ce sujet.\n- L'aspect IA devra être discuté pour déterminer s'il fait partie du périmètre du projet.",
-      "actions": "- Planifier les deux points hebdomadaires (mercredi 15h, vendredi 14h)\n- Planifier le point mensuel avec Hamza, Alexandre et Cédric\n- Organiser un point avec les équipes métier pour valider l'évangélisation et les dashboards\n- Prévoir la mise en place de la RLS dès le démarrage du projet\n- Discuter de l'intégration de l'aspect IA dans le périmètre du projet",
+      "notes": "## Contexte\n\nLa phase de cadrage rapide vise Ã  rÃ©capituler les attentes du client et Ã  rÃ©aliser un audit technique. Le client a dÃ©jÃ  identifiÃ© ses besoins.\n\n## Points de Suivi OpÃ©rationnel\n\n- Deux points hebdomadaires seront mis en place, sans la participation de CÃ©dric :\n  - Mercredi Ã  **15h**\n  - Vendredi Ã  **14h**\n- Un point mensuel avec Hamza, Alexandre et CÃ©dric est prÃ©vu, en rÃ©utilisant un des crÃ©neaux des points hebdomadaires.\n\n## Points SpÃ©cifiques\n\n- Un point sera rÃ©alisÃ© avec les Ã©quipes mÃ©tier pour valider l'Ã©tape d'Ã©vangÃ©lisation et les dashboards (politique).\n- La mise en place de la RLS (Row Level Security) est Ã  prÃ©voir dÃ¨s le dÃ©marrage du projet. Aucune documentation n'existe actuellement sur ce sujet.\n- L'aspect IA devra Ãªtre discutÃ© pour dÃ©terminer s'il fait partie du pÃ©rimÃ¨tre du projet.",
+      "actions": "- Planifier les deux points hebdomadaires (mercredi 15h, vendredi 14h)\n- Planifier le point mensuel avec Hamza, Alexandre et CÃ©dric\n- Organiser un point avec les Ã©quipes mÃ©tier pour valider l'Ã©vangÃ©lisation et les dashboards\n- PrÃ©voir la mise en place de la RLS dÃ¨s le dÃ©marrage du projet\n- Discuter de l'intÃ©gration de l'aspect IA dans le pÃ©rimÃ¨tre du projet",
       "updatedAt": 1782769921964,
       "createdAt": 1782769921964
     }
@@ -74,7 +74,8 @@
   "deletedTodoIds": {},
   "openPhases": [
     "infra",
-    "lookml"
+    "lookml",
+    "project-mgmt"
   ],
-  "updatedAt": 1782769922615
+  "updatedAt": 1782804963938
 }
