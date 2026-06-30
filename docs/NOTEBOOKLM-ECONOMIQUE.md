@@ -50,6 +50,15 @@ winget install Cloudflare.cloudflared
 
 → Chrome s'ouvre : connectez-vous **@converteo.com**, ouvrez notebooklm.google.com, fermez Chrome.
 
+Si erreur « Executable doesn't exist » / Playwright :
+
+```powershell
+cd $env:USERPROFILE\notebooklm-mcp
+npx.cmd playwright install chromium
+cd chemin\vers\looker-project-checklist
+.\scripts\notebooklm-auth.ps1
+```
+
 ### 3. Lancer une session d'enrichissement
 
 ```powershell

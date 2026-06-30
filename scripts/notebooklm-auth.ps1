@@ -12,6 +12,12 @@ if (-not (Test-Path (Join-Path $InstallDir "dist\http-wrapper.js"))) {
 Write-Host "=== Auth Google NotebookLM ===" -ForegroundColor Cyan
 Write-Host "Chrome va s'ouvrir. Connectez-vous avec @converteo.com, ouvrez notebooklm.google.com, puis fermez Chrome.`n"
 
+$chromium = Join-Path $env:LOCALAPPDATA "ms-playwright\chromium-1194\chrome-win\chrome.exe"
+if (-not (Test-Path $chromium)) {
+  Write-Host "Chromium Playwright manquant — téléchargement (~150 Mo)…" -ForegroundColor Yellow
+  npx.cmd playwright install chromium
+}
+
 Push-Location $InstallDir
 try {
   npm run setup-auth
