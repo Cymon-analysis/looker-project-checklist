@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Comptes-rendus Weekly — Checklist Looker</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="weeklies.css?v=9" />
+  <link rel="stylesheet" href="weeklies.css?v=11" />
 </head>
 <body>
   <div class="weekly-container">
@@ -31,7 +31,23 @@
       Configurez soit une clé API (<code>GEMINI_API_KEY</code>), soit un proxy Vertex AI (<code>GEMINI_PROXY_URL</code>) dans les secrets GitHub. Voir <code>docs/GEMINI-VERTEX-PROXY.md</code>.
     </div>
 
-    <div class="card">
+    <div class="card" id="calendarCard">
+      <div class="card-header">
+        <span>Agenda Google Converteo</span>
+        <span id="calendarStatus" class="calendar-status">Non connecté</span>
+      </div>
+      <p class="paste-hint" style="margin-top:0">
+        Importez les notes Gemini des réunions dont le titre contient « Weavenn ». Gemini structure ensuite le CR et les actions.
+      </p>
+      <div class="calendar-toolbar">
+        <button type="button" id="connectCalendarBtn" class="btn-secondary">Connecter mon agenda</button>
+        <button type="button" id="importCalendarBtn" class="btn-primary" disabled>Importer une réunion Weavenn</button>
+        <button type="button" id="disconnectCalendarBtn" class="btn-secondary hidden">Déconnecter</button>
+      </div>
+      <p id="calendarHint" class="calendar-hint hidden"></p>
+    </div>
+
+    <div class="card weekly-toolbar-card">
       <div class="weekly-toolbar">
         <div>
           <label class="field-label" for="roomLabel">Espace partagé (room)</label>
@@ -39,7 +55,7 @@
         </div>
         <button type="button" id="addWeeklyBtn" class="btn-primary">+ Nouveau CR</button>
       </div>
-      <p class="roadmap-hint" style="margin:0">Collez un CR brut pour le séparer automatiquement. Gemini analyse aussi les doublons lors de l'import vers la todo.</p>
+      <p class="roadmap-hint" style="margin:12px 0 0">Collez un CR brut ou importez depuis l'agenda. Gemini structure le compte-rendu et extrait les actions.</p>
     </div>
 
     <div id="weeklyFormCard" class="card weekly-form hidden">
@@ -118,6 +134,17 @@
     <footer id="footer"></footer>
   </div>
 
+  <div id="calendarModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
+    <div class="modal-card calendar-modal-card">
+      <h2 id="calendarModalTitle">Importer depuis l'agenda</h2>
+      <p class="modal-text" id="calendarModalSubtitle">Réunions Weavenn des 90 derniers jours</p>
+      <div id="calendarMeetingsList" class="calendar-meetings-list"></div>
+      <div class="modal-actions">
+        <button type="button" id="calendarModalCloseBtn" class="btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div id="importModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
     <div class="modal-card import-modal-card">
       <h2 id="importModalTitle">Ajouter les actions à la todo ?</h2>
@@ -134,14 +161,16 @@
     </div>
   </div>
 
-  <script src="sync-config.js?v=9"></script>
-  <script src="gemini-config.js?v=9"></script>
-  <script src="room-store.js?v=9"></script>
-  <script src="page-utils.js?v=9"></script>
-  <script src="data.js?v=9"></script>
-  <script src="action-matcher.js?v=9"></script>
-  <script src="markdown.js?v=9"></script>
-  <script src="gemini-client.js?v=9"></script>
-  <script src="weeklies.js?v=9"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="sync-config.js?v=11"></script>
+  <script src="gemini-config.js?v=11"></script>
+  <script src="room-store.js?v=11"></script>
+  <script src="page-utils.js?v=11"></script>
+  <script src="data.js?v=11"></script>
+  <script src="action-matcher.js?v=11"></script>
+  <script src="markdown.js?v=11"></script>
+  <script src="gemini-client.js?v=11"></script>
+  <script src="calendar-client.js?v=11"></script>
+  <script src="weeklies.js?v=11"></script>
 </body>
 </html>

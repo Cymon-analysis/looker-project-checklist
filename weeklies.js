@@ -13,7 +13,7 @@ let importUsedGemini = false;
 let pasteAnalyzeTimer = null;
 let isAnalyzingPaste = false;
 
-const APP_BUILD = "20250629-9";
+const APP_BUILD = "20250629-11";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -66,6 +66,172 @@ function schedulePasteAnalyze() {
   const raw = document.getElementById("weeklyRawPaste").value.trim();
   if (raw.length < 80) return;
   pasteAnalyzeTimer = setTimeout(() => analyzeWeeklyPaste({ silent: true }), 1200);
+}
+
+function formatMeetingDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso.includes("T") ? iso : `${iso}T12:00:00`);
+  return d.toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    ...(iso.includes("T") ? { hour: "2-digit", minute: "2-digit" } : {}),
+  });
+}
+
+function updateCalendarUI() {
+  const card = document.getElementById("calendarCard");
+  const statusEl = document.getElementById("calendarStatus");
+  const hintEl = document.getElementById("calendarHint");
+  const connectBtn = document.getElementById("connectCalendarBtn");
+  const importBtn = document.getElementById("importCalendarBtn");
+  const disconnectBtn = document.getElementById("disconnectCalendarBtn");
+
+  if (!card || !window.CalendarClient) return;
+
+  if (!CalendarClient.isConfigured()) {
+    card.classList.add("disabled");
+    statusEl.textContent = "Non configuré";
+    connectBtn.disabled = true;
+    importBtn.disabled = true;
+    disconnectBtn.classList.add("hidden");
+    hintEl.classList.remove("hidden");
+    hintEl.textContent =
+      "Ajoutez GOOGLE_OAUTH_CLIENT_ID et GEMINI_PROXY_URL dans les secrets GitHub, puis redéployez Pages.";
+    return;
+  }
+
+  card.classList.remove("disabled");
+  connectBtn.disabled = false;
+  hintEl.classList.add("hidden");
+
+  if (CalendarClient.isConnected()) {
+    const email = CalendarClient.getConnectedEmail();
+    statusEl.textContent = email ? `Connecté — ${email}` : "Connecté";
+    statusEl.classList.add("connected");
+    importBtn.disabled = false;
+    connectBtn.classList.add("hidden");
+    disconnectBtn.classList.remove("hidden");
+  } else {
+    statusEl.textContent = "Non connecté";
+    statusEl.classList.remove("connected");
+    importBtn.disabled = true;
+    connectBtn.classList.remove("hidden");
+    disconnectBtn.classList.add("hidden");
+  }
+}
+
+async function connectCalendar() {
+  const connectBtn = document.getElementById("connectCalendarBtn");
+  connectBtn.disabled = true;
+  try {
+    await CalendarClient.connect();
+    updateCalendarUI();
+  } catch (err) {
+    const msg =
+      err.message === "domain_not_allowed"
+        ? "Seuls les comptes @converteo.com sont autorisés."
+        : err.message === "calendar_not_configured"
+          ? "Configuration OAuth manquante (voir docs/GOOGLE-CALENDAR-OAUTH.md)."
+          : "Connexion agenda impossible. Réessayez.";
+    alert(msg);
+  } finally {
+    connectBtn.disabled = false;
+  }
+}
+
+function disconnectCalendar() {
+  CalendarClient.disconnect();
+  updateCalendarUI();
+}
+
+function hideCalendarModal() {
+  document.getElementById("calendarModal")?.classList.add("hidden");
+}
+
+async function openCalendarModal() {
+  const modal = document.getElementById("calendarModal");
+  const list = document.getElementById("calendarMeetingsList");
+  const subtitle = document.getElementById("calendarModalSubtitle");
+
+  modal.classList.remove("hidden");
+  list.innerHTML = '<p class="calendar-empty">Chargement des réunions Weavenn…</p>';
+  subtitle.textContent = "Recherche dans votre agenda…";
+
+  try {
+    await CalendarClient.ensureConnected();
+    updateCalendarUI();
+    const { meetings } = await CalendarClient.listMeetings(90);
+
+    if (!meetings?.length) {
+      list.innerHTML =
+        '<p class="calendar-empty">Aucune réunion avec « Weavenn » dans le titre sur les 90 derniers jours.</p>';
+      subtitle.textContent = "0 réunion trouvée";
+      return;
+    }
+
+    subtitle.textContent = `${meetings.length} réunion${meetings.length > 1 ? "s" : ""} Weavenn`;
+    list.innerHTML = meetings
+      .map(
+        (m) => `
+        <div class="calendar-meeting-row">
+          <div class="calendar-meeting-info">
+            <div class="calendar-meeting-title">${escHtml(m.title)}</div>
+            <div class="calendar-meeting-meta">${escHtml(formatMeetingDate(m.start))}</div>
+          </div>
+          <span class="calendar-meeting-badge${m.hasGeminiNotes ? "" : " missing"}">${
+            m.hasGeminiNotes ? "Notes Gemini" : "Sans notes Gemini"
+          }</span>
+          <button type="button" class="btn-primary" data-calendar-import="${escHtml(m.id)}">Importer</button>
+        </div>
+      `
+      )
+      .join("");
+
+    list.querySelectorAll("[data-calendar-import]").forEach((btn) => {
+      btn.addEventListener("click", () => importCalendarMeeting(btn.dataset.calendarImport));
+    });
+  } catch (err) {
+    list.innerHTML = `<p class="calendar-empty">Erreur : ${escHtml(err.message || "chargement impossible")}</p>`;
+    if (err.message === "token_expired") updateCalendarUI();
+  }
+}
+
+async function importCalendarMeeting(eventId) {
+  hideCalendarModal();
+  showForm(null);
+  setGeminiStatus("loading", "Récupération des notes de réunion…");
+
+  try {
+    const meeting = await CalendarClient.fetchMeeting(eventId);
+
+    document.getElementById("weeklyTitle").value = meeting.title || "";
+    document.getElementById("weeklyDate").value = meeting.date || new Date().toISOString().slice(0, 10);
+    document.getElementById("weeklyParticipants").value = (meeting.participants || []).join(", ");
+    document.getElementById("weeklyRawPaste").value = meeting.rawText || "";
+
+    document.getElementById("splitPreview").classList.remove("hidden");
+    setGeminiStatus(
+      "loading",
+      meeting.hasGeminiNotes
+        ? "Analyse Gemini du compte-rendu…"
+        : "Notes Gemini absentes — analyse du contenu disponible…"
+    );
+
+    const split = await GeminiClient.splitWeeklyText(meeting.rawText || "");
+    document.getElementById("weeklyNotes").value = split.notes || meeting.rawText || "";
+    document.getElementById("weeklyActions").value = split.actions || "";
+    updateFormPreviews();
+
+    const sourceLabel = meeting.hasGeminiNotes
+      ? `Import agenda — ${meeting.notesSource || "Notes Gemini"}`
+      : "Import agenda — description de l'événement";
+    setGeminiStatus(split.error && !split.usedGemini ? "error" : "ok", `${sourceLabel}. ${formatSplitStatus(split)}`);
+  } catch (err) {
+    setGeminiStatus("error", "Import agenda impossible. Vérifiez votre connexion Google.");
+    if (err.message === "token_expired") updateCalendarUI();
+  }
 }
 
 function escHtml(s) {
@@ -596,6 +762,10 @@ document.getElementById("importSelectAll").addEventListener("click", () => setAl
 document.getElementById("importSelectNone").addEventListener("click", () => setAllImportChecks(false));
 document.getElementById("importConfirmBtn").addEventListener("click", confirmImport);
 document.getElementById("importSkipBtn").addEventListener("click", skipImport);
+document.getElementById("connectCalendarBtn")?.addEventListener("click", connectCalendar);
+document.getElementById("disconnectCalendarBtn")?.addEventListener("click", disconnectCalendar);
+document.getElementById("importCalendarBtn")?.addEventListener("click", openCalendarModal);
+document.getElementById("calendarModalCloseBtn")?.addEventListener("click", hideCalendarModal);
 
 store.subscribe(() => renderWeeklies());
 
@@ -611,5 +781,6 @@ store.subscribe(() => renderWeeklies());
     document.getElementById("geminiCallout")?.classList.remove("hidden");
   }
 
+  updateCalendarUI();
   renderWeeklies();
 })();
