@@ -63,8 +63,8 @@
       "date": "2026-06-30",
       "title": "Kickoff",
       "participants": "",
-      "notes": "## Contexte et Objectifs\n\nLa phase de cadrage rapide vise à récapituler les attentes du client, qui a déjà identifié ses besoins. L'objectif principal de notre côté est de réaliser un audit technique.\n\n## Organisation des Suivis\n\n*   **Points hebdomadaires opérationnels :** Deux points sont mis en place, sans la participation de Cédric.\n    *   Mercredi à **15h**\n    *   Vendredi à **14h**\n*   **Point mensuel :** Un point mensuel sera organisé avec **Hamza**, **Alexandre** et **Cédric**. Il est prévu de réutiliser un des créneaux des points hebdomadaires pour cette réunion.\n\n## Points Discutés et Prochaines Étapes\n\n*   **Validation métier :** Un point est à prévoir avec les équipes métier pour valider l’étape d’évangélisation et les dashboards (politique).\n*   **Row-Level Security (RLS) :** Le RLS est à prévoir **dès le démarrage du projet**. Il a été noté qu'il n’existe actuellement pas de documentation sur ce point.\n*   **Aspect IA :** Une discussion est nécessaire pour déterminer si ce sujet fera partie du périmètre du projet.",
-      "actions": "- Réaliser un récapitulatif des attentes (client)\n- Réaliser un audit technique (notre côté)\n- Mettre en place deux points hebdomadaires (mercredi à 15h, vendredi à 14h)\n- Planifier un point mensuel avec Hamza, Alexandre et Cédric (réutiliser un créneau hebdomadaire)\n- Organiser un point avec les équipes métier\n- Valider l'étape d'évangélisation (avec équipes métier)\n- Valider les dashboards (avec équipes métier)\n- Prévoir le RLS dès le démarrage du projet\n- Documenter le RLS\n- Discuter de l'aspect IA pour déterminer son périmètre",
+      "notes": "## Contexte et Objectifs\n\nLa phase de cadrage rapide vise Ã  rÃ©capituler les attentes du client, qui a dÃ©jÃ  identifiÃ© ses besoins. L'objectif principal de notre cÃ´tÃ© est de rÃ©aliser un audit technique.\n\n## Organisation des Suivis\n\n*   **Points hebdomadaires opÃ©rationnels :** Deux points sont mis en place, sans la participation de CÃ©dric.\n    *   Mercredi Ã  **15h**\n    *   Vendredi Ã  **14h**\n*   **Point mensuel :** Un point mensuel sera organisÃ© avec **Hamza**, **Alexandre** et **CÃ©dric**. Il est prÃ©vu de rÃ©utiliser un des crÃ©neaux des points hebdomadaires pour cette rÃ©union.\n\n## Points DiscutÃ©s et Prochaines Ãtapes\n\n*   **Validation mÃ©tier :** Un point est Ã  prÃ©voir avec les Ã©quipes mÃ©tier pour valider lâÃ©tape dâÃ©vangÃ©lisation et les dashboards (politique).\n*   **Row-Level Security (RLS) :** Le RLS est Ã  prÃ©voir **dÃ¨s le dÃ©marrage du projet**. Il a Ã©tÃ© notÃ© qu'il nâexiste actuellement pas de documentation sur ce point.\n*   **Aspect IA :** Une discussion est nÃ©cessaire pour dÃ©terminer si ce sujet fera partie du pÃ©rimÃ¨tre du projet.",
+      "actions": "- RÃ©aliser un rÃ©capitulatif des attentes (client)\n- RÃ©aliser un audit technique (notre cÃ´tÃ©)\n- Mettre en place deux points hebdomadaires (mercredi Ã  15h, vendredi Ã  14h)\n- Planifier un point mensuel avec Hamza, Alexandre et CÃ©dric (rÃ©utiliser un crÃ©neau hebdomadaire)\n- Organiser un point avec les Ã©quipes mÃ©tier\n- Valider l'Ã©tape d'Ã©vangÃ©lisation (avec Ã©quipes mÃ©tier)\n- Valider les dashboards (avec Ã©quipes mÃ©tier)\n- PrÃ©voir le RLS dÃ¨s le dÃ©marrage du projet\n- Documenter le RLS\n- Discuter de l'aspect IA pour dÃ©terminer son pÃ©rimÃ¨tre",
       "updatedAt": 1782809160136,
       "createdAt": 1782809160136,
       "actionsImportedHash": "realiser un recapitulatif des attentes client realiser un audit technique notre cote mettre en place deux points hebdomadaires mercredi a 15h vendredi a 14h planifier un point mensuel avec hamza alexandre et cedric reutiliser un creneau hebdomadaire organiser un point avec les equipes metier valider l etape d evangelisation avec equipes metier valider les dashboards avec equipes metier prevoir le rls des le demarrage du projet documenter le rls discuter de l aspect ia pour determiner son perimetre"
@@ -73,35 +73,35 @@
   "todos": [
     {
       "id": "todo-1782809222092-mz3bj",
-      "title": "Valider les dashboards (avec équipes métier)",
+      "title": "Valider les dashboards (avec Ã©quipes mÃ©tier)",
       "weeklyId": "w-1782809160136-6ccmu",
       "weeklyTitle": "Kickoff",
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782810268211,
+      "updatedAt": 1782813860398,
       "phaseId": "infra"
     },
     {
       "id": "todo-1782809222092-rj7cp",
-      "title": "Valider l'étape d'évangélisation (avec équipes métier)",
+      "title": "Valider l'Ã©tape d'Ã©vangÃ©lisation (avec Ã©quipes mÃ©tier)",
       "weeklyId": "w-1782809160136-6ccmu",
       "weeklyTitle": "Kickoff",
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782810268211,
+      "updatedAt": 1782813860398,
       "phaseId": "infra"
     },
     {
       "id": "todo-1782809222092-we809",
-      "title": "Planifier un point mensuel avec Hamza, Alexandre et Cédric (réutiliser un créneau hebdomadaire)",
+      "title": "Planifier un point mensuel avec Hamza, Alexandre et CÃ©dric (rÃ©utiliser un crÃ©neau hebdomadaire)",
       "weeklyId": "w-1782809160136-6ccmu",
       "weeklyTitle": "Kickoff",
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782810268211,
+      "updatedAt": 1782813860398,
       "phaseId": "platform"
     }
   ],
@@ -120,5 +120,5 @@
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782810274834
+  "updatedAt": 1782813860408
 }
