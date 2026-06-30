@@ -115,10 +115,10 @@
   "deletedItemIds": {
     "pm-01": 1782810274828
   },
+  "itemEnrichments": {},
   "openPhases": [
     "infra",
-    "lookml",
-    "project-mgmt"
+    "lookml"
   ],
-  "updatedAt": 1782815208451
+  "updatedAt": 1782824081995
 }
