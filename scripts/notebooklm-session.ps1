@@ -22,6 +22,29 @@ function Test-Command($name) {
   }
 }
 
+function Resolve-Cloudflared() {
+  $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+
+  $candidates = @(
+    "$env:ProgramFiles\cloudflared\cloudflared.exe",
+    "${env:ProgramFiles(x86)}\cloudflared\cloudflared.exe",
+    "$env:LOCALAPPDATA\Microsoft\WinGet\Links\cloudflared.exe"
+  )
+  foreach ($path in $candidates) {
+    if (Test-Path $path) { return $path }
+  }
+  return $null
+}
+
+function Resolve-Gcloud() {
+  $cmd = Get-Command gcloud -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $candidate = "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd"
+  if (Test-Path $candidate) { return $candidate }
+  return $null
+}
+
 if (-not (Test-Path (Join-Path $InstallDir "dist\http-wrapper.js"))) {
   Write-Host "Installation requise. Lancez : .\scripts\notebooklm-install.ps1" -ForegroundColor Red
   exit 1
@@ -33,8 +56,22 @@ if (-not (Test-Path $authFile)) {
   exit 1
 }
 
-Test-Command "cloudflared"
-Test-Command "gcloud"
+$cloudflaredPath = Resolve-Cloudflared
+if (-not $cloudflaredPath) {
+  Write-Host "cloudflared introuvable. Installez-le puis relancez PowerShell :" -ForegroundColor Red
+  Write-Host "  winget install Cloudflare.cloudflared" -ForegroundColor Yellow
+  exit 1
+}
+
+$gcloudPath = Resolve-Gcloud
+if (-not $gcloudPath) {
+  Write-Host "gcloud introuvable. Installez Google Cloud SDK puis relancez PowerShell :" -ForegroundColor Red
+  Write-Host "  https://cloud.google.com/sdk/docs/install" -ForegroundColor Yellow
+  exit 1
+}
+
+Write-Host "cloudflared : $cloudflaredPath" -ForegroundColor DarkGray
+Write-Host "gcloud      : $gcloudPath" -ForegroundColor DarkGray
 
 Write-Host ""
 Write-Host "=== 1/4 - Demarrage serveur HTTP (port $LOCAL_PORT) ===" -ForegroundColor Cyan
@@ -77,7 +114,7 @@ Write-Host "[OK] Serveur HTTP + auth OK" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "=== 2/4 - Tunnel Cloudflare ===" -ForegroundColor Cyan
-$tunnelProc = Start-Process -FilePath "cloudflared" `
+$tunnelProc = Start-Process -FilePath $cloudflaredPath `
   -ArgumentList "tunnel", "--url", "http://localhost:$LOCAL_PORT" `
   -RedirectStandardOutput "$env:TEMP\cloudflared-nblm.log" `
   -RedirectStandardError "$env:TEMP\cloudflared-nblm.err.log" `
@@ -126,13 +163,13 @@ try {
 
 Write-Host ""
 Write-Host "=== 4/4 - Mise a jour proxy Cloud Run ===" -ForegroundColor Cyan
-gcloud config set project $PROJECT_ID --quiet
-gcloud run services update $PROXY_SERVICE `
+& $gcloudPath config set project $PROJECT_ID --quiet
+& $gcloudPath run services update $PROXY_SERVICE `
   --region $REGION `
   --update-env-vars "NOTEBOOKLM_API_URL=$tunnelUrl,NOTEBOOKLM_NOTEBOOK_ID=$NOTEBOOK_ID" `
   --quiet
 
-$proxyUrl = gcloud run services describe $PROXY_SERVICE --region $REGION --format="value(status.url)"
+$proxyUrl = & $gcloudPath run services describe $PROXY_SERVICE --region $REGION --format="value(status.url)"
 Write-Host ""
 Write-Host "PRET !" -ForegroundColor Green
 Write-Host "  Proxy      : $proxyUrl"
