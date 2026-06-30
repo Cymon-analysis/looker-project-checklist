@@ -88,15 +88,51 @@ async function googleFetch(url, userToken, options = {}) {
 }
 
 async function validateUserToken(userToken) {
-  const info = await googleFetch("https://www.googleapis.com/oauth2/v3/userinfo", userToken);
-  const email = String(info.email || "").toLowerCase();
-  const domain = email.split("@")[1] || "";
-  if (domain !== ALLOWED_EMAIL_DOMAIN) {
-    const err = new Error("domain_not_allowed");
-    err.email = email;
+  let email = "";
+
+  try {
+    const info = await googleFetch("https://www.googleapis.com/oauth2/v3/userinfo", userToken);
+    email = String(info.email || "").toLowerCase();
+    if (email) {
+      const domain = email.split("@")[1] || "";
+      if (domain !== ALLOWED_EMAIL_DOMAIN) {
+        const err = new Error("domain_not_allowed");
+        err.email = email;
+        throw err;
+      }
+      return { email, name: info.name || "" };
+    }
+  } catch (err) {
+    if (err.message === "domain_not_allowed") throw err;
+  }
+
+  const tokenRes = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(userToken)}`
+  );
+  const tokenData = await tokenRes.json();
+  if (tokenData.error || !tokenRes.ok) {
+    const err = new Error("invalid_token");
+    err.status = 401;
+    err.body = tokenData;
     throw err;
   }
-  return info;
+
+  email = String(tokenData.email || "").toLowerCase();
+  if (email) {
+    const domain = email.split("@")[1] || "";
+    if (domain !== ALLOWED_EMAIL_DOMAIN) {
+      const err = new Error("domain_not_allowed");
+      err.email = email;
+      throw err;
+    }
+    return { email, name: email };
+  }
+
+  await googleFetch(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1",
+    userToken
+  );
+  return { email: "", name: "" };
 }
 
 function extractDriveFileId(url) {

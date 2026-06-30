@@ -4,6 +4,9 @@
   const EMAIL_KEY = "looker-calendar-user-email";
 
   const SCOPES = [
+    "openid",
+    "email",
+    "profile",
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
   ].join(" ");
@@ -112,6 +115,18 @@
     });
   }
 
+  async function verifyConnection() {
+    try {
+      const me = await apiFetch("/v1/calendar/me", { disconnectOn401: false });
+      sessionStorage.setItem(EMAIL_KEY, me.email || "");
+      return me;
+    } catch {
+      await apiFetch("/v1/calendar/meetings?daysBack=1", { disconnectOn401: false });
+      sessionStorage.setItem(EMAIL_KEY, "");
+      return { email: "" };
+    }
+  }
+
   async function connect() {
     if (!isConfigured()) throw new Error("calendar_not_configured");
     await waitForGoogleIdentity();
@@ -120,35 +135,34 @@
       const client = google.accounts.oauth2.initTokenClient({
         client_id: clientId(),
         scope: SCOPES,
-        hd: "converteo.com",
         callback: async (response) => {
           if (response.error) {
             reject(new Error(response.error));
             return;
           }
+          if (!response.access_token) {
+            reject(new Error("no_access_token"));
+            return;
+          }
           storeToken(response.access_token, response.expires_in);
           try {
-            const me = await apiFetch("/v1/calendar/me");
-            sessionStorage.setItem(EMAIL_KEY, me.email || "");
-            resolve(me);
+            resolve(await verifyConnection());
           } catch (err) {
             disconnect();
             reject(err);
           }
         },
       });
-      client.requestAccessToken({ prompt: "select_account" });
+      client.requestAccessToken({ prompt: "consent" });
     });
   }
 
   async function ensureConnected() {
     if (getStoredToken()) {
       try {
-        const me = await apiFetch("/v1/calendar/me");
-        sessionStorage.setItem(EMAIL_KEY, me.email || "");
-        return me;
+        return await verifyConnection();
       } catch (err) {
-        if (err.message === "token_expired" || err.message === "calendar_http_401") {
+        if (["token_expired", "invalid_token", "missing_token", "google_api_401"].includes(err.message)) {
           disconnect();
         } else {
           throw err;
@@ -159,28 +173,34 @@
   }
 
   async function apiFetch(path, options = {}) {
+    const { disconnectOn401 = true, ...fetchOptions } = options;
     const token = getStoredToken();
     if (!token) throw new Error("not_connected");
 
     const headers = {
-      ...(options.headers || {}),
+      ...(fetchOptions.headers || {}),
       Authorization: `Bearer ${token}`,
     };
-    if (cfg().proxySecret) {
-      headers["X-Gemini-Proxy-Secret"] = cfg().proxySecret;
+    const resolved = resolveConfig();
+    if (resolved.proxySecret) {
+      headers["X-Gemini-Proxy-Secret"] = resolved.proxySecret;
     }
 
     const res = await fetch(`${proxyUrl()}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
     });
 
+    const data = await res.json().catch(() => ({}));
+
     if (res.status === 401) {
-      disconnect();
-      throw new Error("token_expired");
+      const err = new Error(data.error || "token_expired");
+      err.status = 401;
+      err.details = data;
+      if (disconnectOn401) disconnect();
+      throw err;
     }
 
-    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(data.error || `calendar_http_${res.status}`);
       err.status = res.status;

@@ -88,14 +88,24 @@ function calendarErrorMessage(err) {
   if (code === "google_identity_not_loaded") {
     return "Script Google bloqué. Désactivez le bloqueur de pub / autorisez accounts.google.com.";
   }
-  if (code === "access_denied") return "Accès refusé. Réessayez et acceptez les permissions Calendar + Drive.";
-  if (code === "token_expired" || code === "calendar_http_401") {
+  if (code === "access_denied") {
+    return "Accès refusé. Réessayez et acceptez toutes les permissions (agenda, Drive, email).";
+  }
+  if (code === "invalid_token" || code === "google_api_401") {
+    return "Token Google refusé. Déconnectez-vous, reconnectez et acceptez les nouvelles permissions demandées.";
+  }
+  if (code === "missing_token") {
+    return "Erreur technique : le token n'a pas été transmis au proxy. Réessayez.";
+  }
+  if (code === "token_expired") {
     return "Session expirée. Cliquez à nouveau sur « Connecter mon agenda ».";
   }
   if (code === "proxy_calendar_missing") {
     return "Le proxy Cloud Run doit être redéployé (routes Calendar absentes).";
   }
-  if (details.error === "domain_not_allowed") return `Compte non autorisé : ${details.email || "hors @converteo.com"}.`;
+  if (details.error === "domain_not_allowed") {
+    return `Compte non autorisé : ${details.email || "hors @converteo.com"}.`;
+  }
   return `Connexion impossible : ${code || "erreur inconnue"}`;
 }
 

@@ -33,6 +33,7 @@ gcloud services enable calendar-json.googleapis.com drive.googleapis.com
 3. Scopes à ajouter :
    - `.../auth/calendar.readonly`
    - `.../auth/drive.readonly`
+   - `openid`, `email`, `profile` (identification du compte à la connexion)
 
 ---
 
