@@ -72,18 +72,6 @@
   ],
   "todos": [
     {
-      "id": "todo-1782809222092-l95to",
-      "title": "Discuter de l'aspect IA pour déterminer son périmètre",
-      "weeklyId": "w-1782809160136-6ccmu",
-      "weeklyTitle": "Kickoff",
-      "weeklyDate": "2026-06-30",
-      "done": false,
-      "createdAt": 1782809222092,
-      "updatedAt": 1782809243434,
-      "by": "Simon",
-      "at": 1782809243434
-    },
-    {
       "id": "todo-1782809222092-mz3bj",
       "title": "Valider les dashboards (avec équipes métier)",
       "weeklyId": "w-1782809160136-6ccmu",
@@ -118,11 +106,13 @@
     "w-1782769921964-qj2td": 1782808692461,
     "w-1782808722541-0yr8a": 1782809128961
   },
-  "deletedTodoIds": {},
+  "deletedTodoIds": {
+    "todo-1782809222092-l95to": 1782809559339
+  },
   "openPhases": [
     "infra",
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782809244759
+  "updatedAt": 1782809559346
 }
