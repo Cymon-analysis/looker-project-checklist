@@ -13,7 +13,7 @@ let importUsedGemini = false;
 let pasteAnalyzeTimer = null;
 let isAnalyzingPaste = false;
 
-const APP_BUILD = "20250629-11";
+const APP_BUILD = "20250629-12";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -252,29 +252,57 @@ async function importCalendarMeeting(eventId) {
 
   try {
     const meeting = await CalendarClient.fetchMeeting(eventId);
+    const geminiNotes = String(meeting.geminiNotes || meeting.rawText || "").trim();
 
-    document.getElementById("weeklyTitle").value = meeting.title || "";
     document.getElementById("weeklyDate").value = meeting.date || new Date().toISOString().slice(0, 10);
+    document.getElementById("weeklyTitle").value = meeting.title || "";
     document.getElementById("weeklyParticipants").value = (meeting.participants || []).join(", ");
-    document.getElementById("weeklyRawPaste").value = meeting.rawText || "";
+    document.getElementById("weeklyRawPaste").value = geminiNotes;
 
     document.getElementById("splitPreview").classList.remove("hidden");
+
+    if (!geminiNotes) {
+      document.getElementById("weeklyNotes").value = "";
+      document.getElementById("weeklyActions").value = "";
+      updateFormPreviews();
+      setGeminiStatus(
+        "error",
+        meeting.hasGeminiNotes
+          ? "Notes Gemini détectées mais illisibles (accès Drive). Ouvrez la réunion dans Google Calendar."
+          : "Aucune note Gemini sur cette réunion. Activez « Prendre des notes » dans Google Meet, puis réessayez."
+      );
+      return;
+    }
+
     setGeminiStatus(
       "loading",
-      meeting.hasGeminiNotes
-        ? "Analyse Gemini du compte-rendu…"
-        : "Notes Gemini absentes — analyse du contenu disponible…"
+      "Analyse Gemini : titre, participants, compte-rendu et actions…"
     );
 
-    const split = await GeminiClient.splitWeeklyText(meeting.rawText || "");
-    document.getElementById("weeklyNotes").value = split.notes || meeting.rawText || "";
-    document.getElementById("weeklyActions").value = split.actions || "";
+    const analysis = await GeminiClient.analyzeMeetingImport({
+      title: meeting.title,
+      date: meeting.date,
+      participants: meeting.participants,
+      geminiNotes,
+    });
+
+    if (analysis.title) document.getElementById("weeklyTitle").value = analysis.title;
+    if (analysis.participants) {
+      document.getElementById("weeklyParticipants").value = analysis.participants;
+    }
+    document.getElementById("weeklyNotes").value = analysis.notes || "";
+    document.getElementById("weeklyActions").value = analysis.actions || "";
     updateFormPreviews();
 
-    const sourceLabel = meeting.hasGeminiNotes
-      ? `Import agenda — ${meeting.notesSource || "Notes Gemini"}`
-      : "Import agenda — description de l'événement";
-    setGeminiStatus(split.error && !split.usedGemini ? "error" : "ok", `${sourceLabel}. ${formatSplitStatus(split)}`);
+    const sourceLabel = `Import agenda — ${meeting.notesSource || "Notes Gemini"}`;
+    if (analysis.error === "no_gemini_notes") {
+      setGeminiStatus("error", "Notes Gemini introuvables pour cette réunion.");
+      return;
+    }
+    setGeminiStatus(
+      analysis.error && !analysis.usedGemini ? "error" : "ok",
+      `${sourceLabel}. ${formatSplitStatus(analysis)}`
+    );
   } catch (err) {
     setGeminiStatus("error", "Import agenda impossible. Vérifiez votre connexion Google.");
     if (err.message === "token_expired") updateCalendarUI();

@@ -148,7 +148,10 @@ function isGeminiNotesAttachment(attachment) {
   return (
     title.includes("notes by gemini") ||
     title.includes("notes gemini") ||
-    title.includes("gemini notes")
+    title.includes("notes de gemini") ||
+    title.includes("gemini notes") ||
+    title.includes("note gemini") ||
+    (title.includes("gemini") && title.includes("note"))
   );
 }
 
@@ -381,18 +384,7 @@ app.get("/v1/calendar/events/:eventId", async (req, res) => {
     const notes = await fetchGeminiNotesText(userToken, event);
     const description = String(event.description || "").trim();
     const participants = formatAttendees(event.attendees);
-
-    let rawText = notes.text;
-    if (!rawText && description) rawText = description;
-    if (!rawText) {
-      rawText = [
-        `Réunion : ${event.summary || ""}`,
-        participants.length ? `Participants : ${participants.join(", ")}` : "",
-        description,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-    }
+    const geminiNotes = String(notes.text || "").trim();
 
     res.json({
       id: event.id,
@@ -400,9 +392,11 @@ app.get("/v1/calendar/events/:eventId", async (req, res) => {
       date: eventDateIso(event),
       start: event.start?.dateTime || event.start?.date || "",
       participants,
-      rawText,
+      geminiNotes,
+      description,
+      rawText: geminiNotes,
       notesSource: notes.source,
-      hasGeminiNotes: Boolean(notes.text),
+      hasGeminiNotes: Boolean(geminiNotes),
       htmlLink: event.htmlLink || "",
     });
   } catch (err) {

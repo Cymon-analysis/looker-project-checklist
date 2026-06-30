@@ -265,6 +265,155 @@ Réponds UNIQUEMENT en JSON: {"actions":["action 1","action 2"]}`;
     }
   }
 
+  function normalizeParticipantsField(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map((p) => String(p || "").trim())
+        .filter(Boolean)
+        .join(", ");
+    }
+    return String(value || "").trim();
+  }
+
+  async function analyzeMeetingImport(meeting) {
+    const title = String(meeting?.title || "").trim();
+    const date = String(meeting?.date || "").trim();
+    const calendarParticipants = Array.isArray(meeting?.participants)
+      ? meeting.participants.map((p) => String(p || "").trim()).filter(Boolean)
+      : String(meeting?.participants || "")
+          .split(/[,;]/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+    const geminiNotes = String(meeting?.geminiNotes || meeting?.rawText || "").trim();
+
+    if (!geminiNotes) {
+      return {
+        title,
+        participants: calendarParticipants.join(", "),
+        notes: "",
+        actions: "",
+        usedGemini: false,
+        error: "no_gemini_notes",
+      };
+    }
+
+    if (!isEnabled()) {
+      const contextBlock = [
+        title ? `Réunion : ${title}` : "",
+        date ? `Date : ${date}` : "",
+        calendarParticipants.length
+          ? `Participants (agenda) : ${calendarParticipants.join(", ")}`
+          : "",
+        "",
+        geminiNotes,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const split = heuristicSplit(contextBlock);
+      return {
+        title,
+        participants: calendarParticipants.join(", "),
+        notes: split.notes,
+        actions: split.actions,
+        usedGemini: false,
+        error: null,
+      };
+    }
+
+    const userContent = JSON.stringify(
+      {
+        meetingTitle: title,
+        meetingDate: date,
+        calendarParticipants,
+        geminiMeetingNotes: geminiNotes,
+      },
+      null,
+      2
+    );
+
+    const systemPrompt = `Tu es un rédacteur expert de comptes-rendus de réunion (projet data / Looker) en français.
+
+On t'a fourni les métadonnées d'une réunion importée depuis Google Calendar et le texte des **notes prises par Gemini pendant la réunion** (champ geminiMeetingNotes).
+
+RÈGLES IMPORTANTES :
+- Le compte-rendu (notesMarkdown) doit être basé UNIQUEMENT sur geminiMeetingNotes.
+- N'utilise PAS et n'invente pas de contenu issu de la description de l'événement calendrier (non fournie).
+- Utilise meetingTitle pour contextualiser le CR ; tu peux proposer un titre légèrement plus lisible.
+- Pour les participants : pars de calendarParticipants, puis complète avec les personnes citées dans geminiMeetingNotes (sans doublons).
+- Les actions doivent provenir des notes Gemini (engagements explicites ou implicites).
+
+Produis un JSON avec :
+
+1) "title" — titre court du CR en français (peut affiner meetingTitle)
+
+2) "participants" — tableau de strings (prénom et nom si connus, sinon prénom seul)
+
+3) "notesMarkdown" — compte-rendu structuré SANS tâches ni actions :
+   - 2 à 5 sections ## (Contexte, Points discutés, Décisions, Risques, Arbitrages…)
+   - Listes à puces (- ) pour les éléments courts, paragraphes pour le récit
+   - **Gras** pour décisions, chiffres et dates clés
+   - Une section ## Participants en tête est bienvenue si utile
+   - Reste fidèle aux notes Gemini, n'invente rien
+
+4) "actions" — tableau de strings (une tâche distincte par entrée) :
+   - Verbe d'action + objet ; responsable entre parenthèses si identifiable dans les notes
+   - Ne laisse pas ce tableau vide si les notes mentionnent des engagements ou prochaines étapes
+
+Réponds UNIQUEMENT en JSON: {"title":"...","participants":["..."],"notesMarkdown":"...","actions":["..."]}`;
+
+    try {
+      const result = await generateJson(systemPrompt, userContent);
+      let notes = String(result.notesMarkdown || result.notes || "").trim();
+      let actions = normalizeActionsField(result.actions || result.actionItems || result.todos);
+      const refinedTitle = String(result.title || title).trim() || title;
+      const refinedParticipants = normalizeParticipantsField(
+        result.participants || calendarParticipants
+      );
+
+      if (!actions) {
+        actions = await extractActionsFromText(geminiNotes);
+      }
+      if (!actions) {
+        actions = await extractActionsFromText(`${notes}\n\n${geminiNotes}`);
+      }
+      if (!notes || !actions) {
+        const fallback = heuristicSplit(geminiNotes);
+        if (!notes) notes = fallback.notes;
+        if (!actions) actions = fallback.actions || "";
+      }
+
+      return {
+        title: refinedTitle,
+        participants: refinedParticipants || calendarParticipants.join(", "),
+        notes,
+        actions,
+        usedGemini: true,
+        error: null,
+      };
+    } catch {
+      const contextBlock = [
+        title ? `Réunion : ${title}` : "",
+        date ? `Date : ${date}` : "",
+        calendarParticipants.length
+          ? `Participants (agenda) : ${calendarParticipants.join(", ")}`
+          : "",
+        "",
+        geminiNotes,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const fallback = await splitWeeklyText(contextBlock);
+      return {
+        title,
+        participants: calendarParticipants.join(", "),
+        notes: fallback.notes,
+        actions: fallback.actions,
+        usedGemini: fallback.usedGemini,
+        error: fallback.error,
+      };
+    }
+  }
+
   async function splitWeeklyText(rawText) {
     const text = String(rawText || "").trim();
     if (!text) return { notes: "", actions: "", usedGemini: false, error: null };
@@ -504,6 +653,7 @@ Même nombre d'entrées que la liste fournie.`;
     getLastError,
     getLastModelUsed,
     splitWeeklyText,
+    analyzeMeetingImport,
     analyzeActions,
     categorizeTasks,
     extractActionsFromText,
