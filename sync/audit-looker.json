@@ -22,7 +22,7 @@
   "roadmap": {
     "layout": {
       "project-mgmt": {
-        "startDay": 0,
+        "startDay": 4,
         "span": 5
       },
       "infra": {
@@ -55,7 +55,7 @@
       }
     },
     "startDate": "2026-06-29",
-    "updatedAt": 1782815199262
+    "updatedAt": 1782815199874
   },
   "weeklies": [
     {
@@ -120,5 +120,5 @@
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782815199265
+  "updatedAt": 1782815200024
 }
