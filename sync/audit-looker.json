@@ -57,16 +57,27 @@
     "startDate": "2026-06-29",
     "updatedAt": 1782767457930
   },
-  "weeklies": [],
+  "weeklies": [
+    {
+      "id": "w-1782808722541-0yr8a",
+      "date": "2026-06-30",
+      "title": "Kickoff poroje",
+      "participants": "",
+      "notes": "## Contexte et Objectifs\n- Le client a déjà identifié ses besoins pour le projet.\n- L'objectif principal de cette phase de cadrage rapide est de réaliser un récapitulatif des attentes et de mener un audit technique.\n\n## Organisation et Suivi\n- **Deux points hebdomadaires** opérationnels ont été mis en place, sans la participation de Cédric :\n    - Le **mercredi à 15h**\n    - Le **vendredi à 14h**\n- Un **point mensuel** sera organisé avec Hamza, Alexandre et Cédric. Il est prévu de réutiliser l'un des créneaux hebdomadaires existants pour cette réunion.\n\n## Points Techniques et Périmètre\n- **RLS (Row-Level Security)** : L'implémentation de la sécurité au niveau des lignes est à prévoir dès le démarrage du projet. Il a été noté qu'il n'existe actuellement pas de documentation sur ce sujet.\n- **Aspect IA** : Une discussion est nécessaire pour déterminer si ce sujet fera partie du périmètre du projet.\n\n## Validation Métier\n- Un point sera organisé avec les équipes métier afin de valider l’étape d’évangélisation et les dashboards (politique).",
+      "actions": "- Réaliser un audit technique.\n- Réutiliser un créneau hebdomadaire pour le point mensuel avec Hamza, Alexandre et Cédric.\n- Planifier un point avec les équipes métier pour valider l'étape d'évangélisation et les dashboards (politique).\n- Prévoir l'implémentation de RLS dès le démarrage du projet.\n- Rechercher ou créer la documentation sur le RLS.\n- Discuter de l'aspect IA pour déterminer son inclusion dans le périmètre du projet.",
+      "updatedAt": 1782808722541,
+      "createdAt": 1782808722541,
+      "actionsImportedHash": "realiser un audit technique reutiliser un creneau hebdomadaire pour le point mensuel avec hamza alexandre et cedric planifier un point avec les equipes metier pour valider l etape d evangelisation et les dashboards politique prevoir l implementation de rls des le demarrage du projet rechercher ou creer la documentation sur le rls discuter de l aspect ia pour determiner son inclusion dans le perimetre du projet"
+    }
+  ],
   "todos": [],
   "deletedWeeklyIds": {
     "w-1782769921964-qj2td": 1782808692461
   },
   "deletedTodoIds": {},
   "openPhases": [
-    "infra",
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782808692461
+  "updatedAt": 1782808954667
 }
