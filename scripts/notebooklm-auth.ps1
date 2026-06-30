@@ -1,4 +1,4 @@
-# Auth Google NotebookLM (une fois) — ouvre Chrome
+# Auth Google NotebookLM (une fois) - ouvre Chrome
 # Usage : .\scripts\notebooklm-auth.ps1
 
 $ErrorActionPreference = "Stop"
@@ -10,11 +10,12 @@ if (-not (Test-Path (Join-Path $InstallDir "dist\http-wrapper.js"))) {
 }
 
 Write-Host "=== Auth Google NotebookLM ===" -ForegroundColor Cyan
-Write-Host "Chrome va s'ouvrir. Connectez-vous avec @converteo.com, ouvrez notebooklm.google.com, puis fermez Chrome.`n"
+Write-Host "Chrome va s'ouvrir. Connectez-vous avec @converteo.com, ouvrez notebooklm.google.com, puis fermez Chrome."
+Write-Host ""
 
 $chromium = Join-Path $env:LOCALAPPDATA "ms-playwright\chromium-1194\chrome-win\chrome.exe"
 if (-not (Test-Path $chromium)) {
-  Write-Host "Chromium Patchright manquant — téléchargement (~150 Mo)…" -ForegroundColor Yellow
+  Write-Host "Chromium Patchright manquant - telechargement (~150 Mo)..." -ForegroundColor Yellow
   Push-Location $InstallDir
   try {
     node node_modules\patchright\cli.js install chromium
@@ -32,7 +33,9 @@ try {
 
 $authFile = Join-Path $env:LOCALAPPDATA "notebooklm-mcp\Data\browser_state\state.json"
 if (Test-Path $authFile) {
-  Write-Host "`n✅ Auth enregistrée : $authFile" -ForegroundColor Green
+  Write-Host ""
+  Write-Host "OK - Auth enregistree : $authFile" -ForegroundColor Green
 } else {
-  Write-Host "`n⚠️ Fichier auth non trouvé. Relancez setup-auth." -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "ATTENTION - Fichier auth non trouve. Relancez setup-auth." -ForegroundColor Yellow
 }

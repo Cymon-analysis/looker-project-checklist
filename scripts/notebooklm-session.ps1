@@ -1,6 +1,6 @@
-# Session NotebookLM locale + tunnel Cloudflare + mise à jour du proxy Cloud Run
+# Session NotebookLM locale + tunnel Cloudflare + mise a jour du proxy Cloud Run
 # Usage : .\scripts\notebooklm-session.ps1
-# Prérequis : notebooklm-install.ps1 + notebooklm-auth.ps1 (une fois chacun)
+# Prerequis : notebooklm-install.ps1 + notebooklm-auth.ps1 (une fois chacun)
 
 $ErrorActionPreference = "Stop"
 
@@ -18,7 +18,7 @@ if (-not $NOTEBOOK_URL) {
 
 function Test-Command($name) {
   if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
-    Write-Error "Commande introuvable : $name — installez-le puis relancez."
+    Write-Error "Commande introuvable : $name - installez-le puis relancez."
   }
 }
 
@@ -36,9 +36,9 @@ if (-not (Test-Path $authFile)) {
 Test-Command "cloudflared"
 Test-Command "gcloud"
 
-Write-Host "`n=== 1/4 — Démarrage serveur HTTP (port $LOCAL_PORT) ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== 1/4 - Demarrage serveur HTTP (port $LOCAL_PORT) ===" -ForegroundColor Cyan
 
-# Tuer un ancien process sur le port 3000 si présent
 Get-NetTCPConnection -LocalPort $LOCAL_PORT -ErrorAction SilentlyContinue |
   ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
 
@@ -58,7 +58,7 @@ for ($i = 0; $i -lt 12; $i++) {
       break
     }
     if ($health.success -and -not $health.data.authenticated) {
-      Write-Host "Serveur OK mais non authentifié. Lancez : .\scripts\notebooklm-auth.ps1" -ForegroundColor Red
+      Write-Host "Serveur OK mais non authentifie. Lancez : .\scripts\notebooklm-auth.ps1" -ForegroundColor Red
       Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
       exit 1
     }
@@ -69,13 +69,14 @@ for ($i = 0; $i -lt 12; $i++) {
 
 if (-not $healthOk) {
   Write-Host "Serveur HTTP inaccessible sur localhost:$LOCAL_PORT" -ForegroundColor Red
-  Write-Host "Vérifiez que le port est libre et relancez." -ForegroundColor Yellow
+  Write-Host "Verifiez que le port est libre et relancez." -ForegroundColor Yellow
   Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
   exit 1
 }
-Write-Host "✓ Serveur HTTP + auth OK" -ForegroundColor Green
+Write-Host "[OK] Serveur HTTP + auth OK" -ForegroundColor Green
 
-Write-Host "`n=== 2/4 — Tunnel Cloudflare ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== 2/4 - Tunnel Cloudflare ===" -ForegroundColor Cyan
 $tunnelProc = Start-Process -FilePath "cloudflared" `
   -ArgumentList "tunnel", "--url", "http://localhost:$LOCAL_PORT" `
   -RedirectStandardOutput "$env:TEMP\cloudflared-nblm.log" `
@@ -106,7 +107,8 @@ if (-not $tunnelUrl) {
 }
 Write-Host "Tunnel : $tunnelUrl" -ForegroundColor Green
 
-Write-Host "`n=== 3/4 — Enregistrement notebook ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== 3/4 - Enregistrement notebook ===" -ForegroundColor Cyan
 try {
   $body = @{
     url = $NOTEBOOK_URL
@@ -116,13 +118,14 @@ try {
   } | ConvertTo-Json
   Invoke-RestMethod -Method POST -Uri "$tunnelUrl/notebooks" -ContentType "application/json" -Body $body -TimeoutSec 120 | Out-Null
   Invoke-RestMethod -Method PUT -Uri "$tunnelUrl/notebooks/$NOTEBOOK_ID/activate" -TimeoutSec 30 | Out-Null
-  Write-Host "✓ Notebook enregistré ($NOTEBOOK_ID)" -ForegroundColor Green
+  Write-Host "[OK] Notebook enregistre ($NOTEBOOK_ID)" -ForegroundColor Green
 } catch {
-  Write-Host "Note : enregistrement notebook (peut déjà exister ou id différent)" -ForegroundColor Yellow
+  Write-Host "Note : enregistrement notebook (peut deja exister ou id different)" -ForegroundColor Yellow
   Write-Host $_.Exception.Message
 }
 
-Write-Host "`n=== 4/4 — Mise à jour proxy Cloud Run ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== 4/4 - Mise a jour proxy Cloud Run ===" -ForegroundColor Cyan
 gcloud config set project $PROJECT_ID --quiet
 gcloud run services update $PROXY_SERVICE `
   --region $REGION `
@@ -130,17 +133,21 @@ gcloud run services update $PROXY_SERVICE `
   --quiet
 
 $proxyUrl = gcloud run services describe $PROXY_SERVICE --region $REGION --format="value(status.url)"
-Write-Host "`n✅ Prêt !" -ForegroundColor Green
+Write-Host ""
+Write-Host "PRET !" -ForegroundColor Green
 Write-Host "  Proxy      : $proxyUrl"
 Write-Host "  NotebookLM : $tunnelUrl"
 Write-Host "  Test       : curl $proxyUrl/v1/notebooklm/status"
-Write-Host "`n→ Ouvrez la checklist, Ctrl+F5, puis « Enrichir les tâches »"
-Write-Host "→ Ctrl+C ici pour arrêter tunnel + serveur`n" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Ouvrez la checklist, Ctrl+F5, puis Enrichir les taches"
+Write-Host "Ctrl+C ici pour arreter tunnel + serveur" -ForegroundColor Yellow
+Write-Host ""
 
 try {
   while ($true) { Start-Sleep -Seconds 30 }
 } finally {
-  Write-Host "`nArrêt…" -ForegroundColor Cyan
+  Write-Host ""
+  Write-Host "Arret..." -ForegroundColor Cyan
   Stop-Process -Id $tunnelProc.Id -Force -ErrorAction SilentlyContinue
   Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
   Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
