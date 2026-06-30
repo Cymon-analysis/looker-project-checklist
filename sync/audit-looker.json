@@ -26,7 +26,7 @@
         "span": 5
       },
       "infra": {
-        "startDay": 1,
+        "startDay": 4,
         "span": 3
       },
       "governance": {
@@ -55,7 +55,7 @@
       }
     },
     "startDate": "2026-06-29",
-    "updatedAt": 1782815207157
+    "updatedAt": 1782831464268
   },
   "weeklies": [
     {
@@ -117,8 +117,9 @@
   },
   "itemEnrichments": {},
   "openPhases": [
+    "infra",
     "lookml",
-    "governance"
+    "project-mgmt"
   ],
-  "updatedAt": 1782824083879
+  "updatedAt": 1782831464273
 }
