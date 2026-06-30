@@ -208,6 +208,46 @@ button:hover { background: var(--surface2); color: var(--text); }
   display: flex;
   justify-content: flex-end;
 }
+
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px 12px 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  max-width: min(520px, calc(100vw - 32px));
+}
+.undo-toast.hidden {
+  display: none;
+}
+.undo-toast-text {
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.undo-toast-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.undo-toast-btn:hover {
+  filter: brightness(1.08);
+}
 .item-title { font-weight: 600; font-size: 0.9375rem; }
 .item.done .item-title { text-decoration: line-through; color: var(--text3); }
 .pill {

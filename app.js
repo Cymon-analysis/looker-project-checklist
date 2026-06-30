@@ -13,6 +13,9 @@ let metaSaveTimer = null;
 const openGuides = new Set();
 const openTodoGuides = new Set();
 let openPhases = new Set();
+let undoTimer = null;
+
+const UNDO_MS = 8000;
 
 function getChecks() {
   return store.state.checks;
@@ -89,6 +92,44 @@ function setSyncStatus(kind, label) {
 function flashStatus(label) {
   if (!syncEnabled) return;
   setSyncStatus("synced", label);
+}
+
+function ensureUndoToast() {
+  let toast = document.getElementById("undoToast");
+  if (toast) return toast;
+  toast = document.createElement("div");
+  toast.id = "undoToast";
+  toast.className = "undo-toast hidden";
+  toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
+  document.body.appendChild(toast);
+  return toast;
+}
+
+function hideUndoToast() {
+  clearTimeout(undoTimer);
+  undoTimer = null;
+  const toast = document.getElementById("undoToast");
+  if (toast) toast.classList.add("hidden");
+}
+
+function showUndoToast(message, onUndo) {
+  hideUndoToast();
+
+  const toast = ensureUndoToast();
+  toast.innerHTML = `
+    <span class="undo-toast-text">${escHtml(message)}</span>
+    <button type="button" class="undo-toast-btn" id="undoActionBtn">Annuler</button>
+  `;
+  toast.classList.remove("hidden");
+
+  document.getElementById("undoActionBtn").addEventListener("click", () => {
+    onUndo();
+    hideUndoToast();
+    flashStatus("Suppression annulée");
+  });
+
+  undoTimer = setTimeout(hideUndoToast, UNDO_MS);
 }
 
 function showNameModal() {
@@ -414,22 +455,45 @@ function renderPhases() {
 }
 
 function deleteChecklistItem(id) {
+  const item = ITEMS.find((i) => i.id === id);
+  const label = item?.title || "Ce point";
+
   store.patch((state) => {
     state.deletedItemIds = state.deletedItemIds || {};
     state.deletedItemIds[id] = Date.now();
   });
   openGuides.delete(id);
-  flashStatus("Point masqué");
+
+  showUndoToast(`${label} masqué`, () => {
+    store.patch((state) => {
+      if (state.deletedItemIds?.[id]) delete state.deletedItemIds[id];
+    });
+  });
 }
 
 function deleteCustomTodo(id) {
+  const todo = getTodos().find((t) => t.id === id);
+  if (!todo) return;
+  const snapshot = structuredClone(todo);
+  const label = todo.title || "Cette tâche";
+
   store.patch((state) => {
     state.deletedTodoIds = state.deletedTodoIds || {};
     state.deletedTodoIds[id] = Date.now();
     state.todos = (state.todos || []).filter((t) => t.id !== id);
   });
   openTodoGuides.delete(id);
-  flashStatus("Tâche supprimée");
+
+  showUndoToast(`${label} supprimée`, () => {
+    store.patch((state) => {
+      if (state.deletedTodoIds?.[id]) delete state.deletedTodoIds[id];
+      const todos = [...(state.todos || [])];
+      if (!todos.some((t) => t.id === snapshot.id)) {
+        todos.unshift({ ...snapshot, updatedAt: Date.now() });
+        state.todos = todos;
+      }
+    });
+  });
 }
 
 function toggleCustomTodo(id, val) {
