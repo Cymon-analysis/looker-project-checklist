@@ -28,11 +28,19 @@ Le proxy Cloud Run appelle temporairement votre PC via un **tunnel HTTPS gratuit
 
 ### 1. Auth Google (une fois, sur votre PC)
 
-**PowerShell :**
+**PowerShell** (si `npx` est bloqué, utilisez `npx.cmd` ou **Invite de commandes cmd**) :
 
 ```powershell
-npx -y @roomi-fields/notebooklm-mcp@latest setup-auth
+npx.cmd -y @roomi-fields/notebooklm-mcp@latest setup-auth
 ```
+
+Si ça bloque encore :
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Puis relancez `npx -y @roomi-fields/notebooklm-mcp@latest setup-auth`.
 
 → Une fenêtre Chrome s'ouvre : connectez-vous avec **@converteo.com**.
 
@@ -148,6 +156,6 @@ Note l'URL affichée → le proxy est mis à jour automatiquement.
 | Problème | Solution |
 |----------|----------|
 | « NotebookLM non connecté » | Relancer `notebooklm-session.ps1` ou `notebooklm-vm-start.sh` |
-| Auth expirée | Relancer `npx … setup-auth` sur le PC |
+| Auth expirée | Relancer `npx.cmd … setup-auth` sur le PC |
 | Tunnel mort | `Ctrl+C` et relancer le script session |
 | IP VM changée | Normal si VM arrêtée — relancer `notebooklm-vm-start.sh` |

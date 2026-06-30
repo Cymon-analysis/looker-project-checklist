@@ -4,6 +4,12 @@
 
 $ErrorActionPreference = "Stop"
 
+# Évite l'erreur PSSecurityException sur npx.ps1 (policy Windows)
+$Npx = "npx.cmd"
+if (-not (Get-Command $Npx -ErrorAction SilentlyContinue)) {
+  $Npx = "npx"
+}
+
 $PROJECT_ID = "lab-fileparser"
 $REGION = "europe-west1"
 $PROXY_SERVICE = "looker-gemini-proxy"
@@ -21,7 +27,10 @@ function Test-Command($name) {
   }
 }
 
-Test-Command "npx"
+Test-Command "node"
+if (-not (Get-Command $Npx -ErrorAction SilentlyContinue) -and -not (Get-Command "npx" -ErrorAction SilentlyContinue)) {
+  Write-Error "npx introuvable — installez Node.js 18+"
+}
 Test-Command "cloudflared"
 Test-Command "gcloud"
 
@@ -29,7 +38,7 @@ Write-Host "`n=== 1/4 — Vérification auth locale ===" -ForegroundColor Cyan
 $authDir = Join-Path $env:USERPROFILE ".local\share\notebooklm-mcp"
 if (-not (Test-Path $authDir)) {
   Write-Host "Auth non trouvée. Lancement setup-auth…" -ForegroundColor Yellow
-  npx -y @roomi-fields/notebooklm-mcp@latest setup-auth
+  & $Npx -y @roomi-fields/notebooklm-mcp@latest setup-auth
 }
 
 Write-Host "`n=== 2/4 — Démarrage serveur NotebookLM (port $LOCAL_PORT) ===" -ForegroundColor Cyan
@@ -38,12 +47,12 @@ $env:NOTEBOOKLM_PORT = "$LOCAL_PORT"
 $env:NOTEBOOKLM_UI_LOCALE = "fr"
 
 $serverJob = Start-Job -ScriptBlock {
-  param($port)
+  param($port, $npxCmd)
   $env:NOTEBOOKLM_TRANSPORT = "http"
   $env:NOTEBOOKLM_PORT = "$port"
   $env:NOTEBOOKLM_UI_LOCALE = "fr"
-  npx -y @roomi-fields/notebooklm-mcp@latest 2>&1
-} -ArgumentList $LOCAL_PORT
+  & $npxCmd -y @roomi-fields/notebooklm-mcp@latest 2>&1
+} -ArgumentList $LOCAL_PORT, $Npx
 
 Start-Sleep -Seconds 8
 try {
