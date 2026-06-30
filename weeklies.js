@@ -15,7 +15,7 @@ let isAnalyzingPaste = false;
 let pendingDeleteId = null;
 let isDeleting = false;
 
-const APP_BUILD = "20250629-7";
+const APP_BUILD = "20250629-8";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -72,6 +72,13 @@ function schedulePasteAnalyze() {
 
 function escHtml(s) {
   return Markdown.escapeHtml(s);
+}
+
+function escAttr(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
 }
 
 function renderMd(text) {
@@ -232,7 +239,7 @@ async function showImportModal(weekly) {
 
   document.getElementById("importModalTitle").innerHTML = `Ajouter les actions à la todo ?${aiBadge}`;
   document.getElementById("importModalSubtitle").textContent =
-    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Ajustez le titre et les détails avant import.`;
+    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Modifiez le titre et la description ci-dessous avant d'importer.`;
 
   const list = document.getElementById("importActionsList");
   list.innerHTML = parsed
@@ -243,32 +250,19 @@ async function showImportModal(weekly) {
         ? `<span class="import-tag ${tag.className}">${escHtml(tag.text)} : ${escHtml(item.matchTitle)}</span>`
         : `<span class="import-tag ${tag.className}">${escHtml(tag.text)}</span>`;
       const checked = duplicate ? "" : "checked";
-      const disabled = duplicate ? "disabled" : "";
-
-      if (duplicate) {
-        return `
-        <div class="import-action-row is-duplicate">
-          <input type="checkbox" data-import-index="${index}" ${checked} ${disabled} />
-          <div class="import-action-body">
-            <div class="import-action-text">${escHtml(item.text)}</div>
-            <div class="import-action-tags">${matchInfo}</div>
-          </div>
-        </div>
-      `;
-      }
 
       return `
-        <div class="import-action-row" data-import-row="${index}">
-          <input type="checkbox" data-import-index="${index}" ${checked} ${disabled} />
+        <div class="import-action-row${duplicate ? " is-duplicate" : ""}" data-import-row="${index}">
+          <input type="checkbox" data-import-index="${index}" ${checked} aria-label="Importer cette action" />
           <div class="import-action-body import-action-editable">
-            <label class="import-field-label">Titre de la tâche</label>
-            <input type="text" class="import-title-input" data-import-index="${index}" value="${escHtml(item.text)}" maxlength="200" />
-            <label class="import-field-label">Contexte / description</label>
-            <textarea class="import-desc-input" data-import-index="${index}" rows="2" placeholder="Précisez le pourquoi ou le périmètre de l'action…">${escHtml(item.description || "")}</textarea>
-            <label class="import-field-label">Comment vérifier</label>
-            <textarea class="import-verify-input" data-import-index="${index}" rows="3" placeholder="Critères concrets pour valider que l'action est faite…">${escHtml(item.verify || "")}</textarea>
-            <label class="import-field-label">Comment mettre en place</label>
-            <textarea class="import-setup-input" data-import-index="${index}" rows="3" placeholder="Étapes concrètes, responsables, outils…">${escHtml(item.setup || "")}</textarea>
+            <label class="import-field-label" for="import-title-${index}">Titre de la tâche</label>
+            <input type="text" id="import-title-${index}" class="import-title-input" data-import-index="${index}" value="${escAttr(item.text)}" maxlength="200" />
+            <label class="import-field-label" for="import-desc-${index}">Contexte / description</label>
+            <textarea id="import-desc-${index}" class="import-desc-input" data-import-index="${index}" rows="2" placeholder="Précisez le pourquoi ou le périmètre de l'action…">${escHtml(item.description || "")}</textarea>
+            <label class="import-field-label" for="import-verify-${index}">Comment vérifier</label>
+            <textarea id="import-verify-${index}" class="import-verify-input" data-import-index="${index}" rows="3" placeholder="Critères concrets pour valider que l'action est faite…">${escHtml(item.verify || "")}</textarea>
+            <label class="import-field-label" for="import-setup-${index}">Comment mettre en place</label>
+            <textarea id="import-setup-${index}" class="import-setup-input" data-import-index="${index}" rows="3" placeholder="Étapes concrètes, responsables, outils…">${escHtml(item.setup || "")}</textarea>
             <div class="import-action-tags">${matchInfo}</div>
           </div>
         </div>
@@ -288,7 +282,7 @@ function hideImportModal() {
 }
 
 function setAllImportChecks(checked) {
-  document.querySelectorAll("#importActionsList input[type=checkbox]:not(:disabled)").forEach((el) => {
+  document.querySelectorAll("#importActionsList input[type=checkbox]").forEach((el) => {
     el.checked = checked;
   });
 }
@@ -297,11 +291,11 @@ function collectSelectedImports() {
   const selected = [];
   document.querySelectorAll("#importActionsList .import-action-row").forEach((row) => {
     const checkbox = row.querySelector('input[type="checkbox"]');
-    if (!checkbox?.checked || checkbox.disabled) return;
+    if (!checkbox?.checked) return;
 
     const index = Number(checkbox.dataset.importIndex);
     const item = importAnalysis[index];
-    if (!item || isDuplicateStatus(item.status)) return;
+    if (!item) return;
 
     const title = row.querySelector(".import-title-input")?.value.trim() || item.text;
     if (!title) return;

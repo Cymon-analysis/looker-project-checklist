@@ -342,6 +342,7 @@ function renderCustomTodos() {
         <div class="item-title-row">
           <span class="item-title">${escHtml(todo.title)}</span>
           <span class="pill pill-high">Action weekly</span>
+          <button type="button" class="btn-secondary todo-delete-btn" data-todo-delete="${escHtml(todo.id)}" title="Supprimer cette action">Supprimer</button>
         </div>
         ${desc}
         ${source}
@@ -383,8 +384,31 @@ function renderCustomTodos() {
       toggleCustomTodo(e.target.dataset.todoId, e.target.checked);
     });
 
+    itemEl.querySelector("[data-todo-delete]")?.addEventListener("click", () => {
+      deleteCustomTodo(todo.id, todo.title);
+    });
+
     list.appendChild(itemEl);
   });
+}
+
+function deleteCustomTodo(id, title) {
+  const label = title ? `« ${title} »` : "cette action";
+  if (!confirm(`Supprimer ${label} de la checklist ?`)) return;
+
+  if (syncEnabled) setSyncStatus("connecting", "Suppression…");
+  store.patch((state) => {
+    state.deletedTodoIds = state.deletedTodoIds || {};
+    state.deletedTodoIds[id] = Date.now();
+    state.todos = (state.todos || []).filter((t) => t.id !== id);
+  });
+  openTodoGuides.delete(id);
+
+  if (syncEnabled) {
+    store.queueSave()
+      .then(() => setSyncStatus("synced", "Synchronisé"))
+      .catch(() => setSyncStatus("error", "Erreur suppression"));
+  }
 }
 
 function toggleCustomTodo(id, val) {

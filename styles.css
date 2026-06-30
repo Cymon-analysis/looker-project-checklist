@@ -168,6 +168,11 @@ button:hover { background: var(--surface2); color: var(--text); }
 .item-check input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 .item-content { flex: 1; min-width: 0; }
 .item-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.todo-delete-btn {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
 .item-title { font-weight: 600; font-size: 0.9375rem; }
 .item.done .item-title { text-decoration: line-through; color: var(--text3); }
 .pill {
