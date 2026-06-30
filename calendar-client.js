@@ -12,16 +12,55 @@
     return window.GEMINI_CONFIG || {};
   }
 
+  function resolveConfig() {
+    const c = cfg();
+    let proxyUrl = String(c.proxyUrl || "").trim().replace(/\/$/, "");
+    let apiKey = String(c.apiKey || "").trim();
+    if (!proxyUrl && /^https?:\/\//i.test(apiKey)) {
+      proxyUrl = apiKey.replace(/\/$/, "");
+      apiKey = "";
+    }
+    return {
+      ...c,
+      proxyUrl,
+      apiKey,
+      googleOAuthClientId: String(c.googleOAuthClientId || "").trim(),
+    };
+  }
+
+  function getSetupStatus() {
+    const c = resolveConfig();
+    return {
+      hasClientId: Boolean(c.googleOAuthClientId),
+      hasProxyUrl: Boolean(c.proxyUrl),
+      proxyUrl: c.proxyUrl,
+    };
+  }
+
+  async function checkProxyHealth() {
+    const c = resolveConfig();
+    if (!c.proxyUrl) return { ok: false, reason: "no_proxy_url" };
+    try {
+      const res = await fetch(`${c.proxyUrl}/health`);
+      if (!res.ok) return { ok: false, reason: "proxy_error", status: res.status };
+      const data = await res.json();
+      return { ok: true, calendar: Boolean(data.calendar), data };
+    } catch {
+      return { ok: false, reason: "proxy_unreachable" };
+    }
+  }
+
   function proxyUrl() {
-    return String(cfg().proxyUrl || "").replace(/\/$/, "");
+    return resolveConfig().proxyUrl;
   }
 
   function clientId() {
-    return String(cfg().googleOAuthClientId || "").trim();
+    return resolveConfig().googleOAuthClientId;
   }
 
   function isConfigured() {
-    return Boolean(proxyUrl() && clientId());
+    const c = resolveConfig();
+    return Boolean(c.proxyUrl && c.googleOAuthClientId);
   }
 
   function getStoredToken() {
@@ -163,6 +202,8 @@
 
   window.CalendarClient = {
     isConfigured,
+    getSetupStatus,
+    checkProxyHealth,
     isConnected,
     getConnectedEmail,
     connect,

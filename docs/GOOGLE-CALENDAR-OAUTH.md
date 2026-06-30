@@ -47,15 +47,18 @@ gcloud services enable calendar-json.googleapis.com drive.googleapis.com
 
 ---
 
-## Étape 4 — Secret GitHub
+## Étape 4 — Secrets GitHub
 
 Dans le dépôt `looker-project-checklist` → **Settings** → **Secrets** :
 
-| Secret | Valeur |
-|--------|--------|
-| `GOOGLE_OAUTH_CLIENT_ID` | `123456789-xxxx.apps.googleusercontent.com` |
-| `GEMINI_PROXY_URL` | URL Cloud Run existante |
-| `GEMINI_PROXY_SECRET` | (optionnel) |
+| Secret | Valeur | Attention |
+|--------|--------|-----------|
+| `GOOGLE_OAUTH_CLIENT_ID` | `123456789-xxxx.apps.googleusercontent.com` | Client ID OAuth Web |
+| `GEMINI_PROXY_URL` | `https://looker-gemini-proxy-XXXX.europe-west1.run.app` | **URL du proxy** (sans slash final) |
+| `GEMINI_PROXY_SECRET` | (optionnel) | |
+| `GEMINI_API_KEY` | Laisser **vide** si vous utilisez le proxy | **Ne pas** y mettre l'URL du proxy |
+
+> Si l'URL du proxy est dans `GEMINI_API_KEY` au lieu de `GEMINI_PROXY_URL`, l'agenda Google ne fonctionnera pas.
 
 Relancer le workflow **Deploy GitHub Pages**.
 

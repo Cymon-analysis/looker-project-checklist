@@ -80,7 +80,26 @@ function formatMeetingDate(iso) {
   });
 }
 
-function updateCalendarUI() {
+function calendarErrorMessage(err) {
+  const code = err?.message || "";
+  const details = err?.details || {};
+  if (code === "domain_not_allowed") return "Seuls les comptes @converteo.com sont autorisés.";
+  if (code === "calendar_not_configured") return "Configuration incomplète (proxy ou Client OAuth).";
+  if (code === "google_identity_not_loaded") {
+    return "Script Google bloqué. Désactivez le bloqueur de pub / autorisez accounts.google.com.";
+  }
+  if (code === "access_denied") return "Accès refusé. Réessayez et acceptez les permissions Calendar + Drive.";
+  if (code === "token_expired" || code === "calendar_http_401") {
+    return "Session expirée. Cliquez à nouveau sur « Connecter mon agenda ».";
+  }
+  if (code === "proxy_calendar_missing") {
+    return "Le proxy Cloud Run doit être redéployé (routes Calendar absentes).";
+  }
+  if (details.error === "domain_not_allowed") return `Compte non autorisé : ${details.email || "hors @converteo.com"}.`;
+  return `Connexion impossible : ${code || "erreur inconnue"}`;
+}
+
+async function updateCalendarUI() {
   const card = document.getElementById("calendarCard");
   const statusEl = document.getElementById("calendarStatus");
   const hintEl = document.getElementById("calendarHint");
@@ -90,6 +109,8 @@ function updateCalendarUI() {
 
   if (!card || !window.CalendarClient) return;
 
+  const setup = CalendarClient.getSetupStatus();
+
   if (!CalendarClient.isConfigured()) {
     card.classList.add("disabled");
     statusEl.textContent = "Non configuré";
@@ -97,8 +118,27 @@ function updateCalendarUI() {
     importBtn.disabled = true;
     disconnectBtn.classList.add("hidden");
     hintEl.classList.remove("hidden");
+    if (!setup.hasProxyUrl) {
+      hintEl.textContent =
+        "Secret GEMINI_PROXY_URL manquant dans GitHub. L'URL du proxy Cloud Run doit être dans GEMINI_PROXY_URL (pas dans GEMINI_API_KEY).";
+    } else if (!setup.hasClientId) {
+      hintEl.textContent = "Secret GOOGLE_OAUTH_CLIENT_ID manquant dans GitHub. Relancez le déploiement Pages.";
+    } else {
+      hintEl.textContent = "Configuration agenda incomplète.";
+    }
+    return;
+  }
+
+  const health = await CalendarClient.checkProxyHealth();
+  if (!health.ok || !health.calendar) {
+    card.classList.add("disabled");
+    statusEl.textContent = "Proxy à mettre à jour";
+    connectBtn.disabled = true;
+    importBtn.disabled = true;
+    disconnectBtn.classList.add("hidden");
+    hintEl.classList.remove("hidden");
     hintEl.textContent =
-      "Ajoutez GOOGLE_OAUTH_CLIENT_ID et GEMINI_PROXY_URL dans les secrets GitHub, puis redéployez Pages.";
+      "Le proxy Cloud Run n'inclut pas encore les routes Calendar. Redéployez looker-gemini-proxy (voir docs/GOOGLE-CALENDAR-OAUTH.md, étape 5).";
     return;
   }
 
@@ -126,16 +166,13 @@ async function connectCalendar() {
   const connectBtn = document.getElementById("connectCalendarBtn");
   connectBtn.disabled = true;
   try {
+    const health = await CalendarClient.checkProxyHealth();
+    if (!health.calendar) throw new Error("proxy_calendar_missing");
     await CalendarClient.connect();
-    updateCalendarUI();
+    await updateCalendarUI();
   } catch (err) {
-    const msg =
-      err.message === "domain_not_allowed"
-        ? "Seuls les comptes @converteo.com sont autorisés."
-        : err.message === "calendar_not_configured"
-          ? "Configuration OAuth manquante (voir docs/GOOGLE-CALENDAR-OAUTH.md)."
-          : "Connexion agenda impossible. Réessayez.";
-    alert(msg);
+    alert(calendarErrorMessage(err));
+    await updateCalendarUI();
   } finally {
     connectBtn.disabled = false;
   }
@@ -781,6 +818,6 @@ store.subscribe(() => renderWeeklies());
     document.getElementById("geminiCallout")?.classList.remove("hidden");
   }
 
-  updateCalendarUI();
+  await updateCalendarUI();
   renderWeeklies();
 })();

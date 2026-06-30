@@ -44,13 +44,18 @@ jobs:
             "sync-config.js",
             `window.SYNC_CONFIG = ${JSON.stringify(syncCfg, null, 2)};\n`
           );
-          const proxyUrl = (process.env.GEMINI_PROXY_URL || "").trim();
+          let proxyUrl = (process.env.GEMINI_PROXY_URL || "").trim().replace(/\/$/, "");
+          let apiKey = (process.env.GEMINI_API_KEY || "").trim();
+          if (!proxyUrl && /^https?:\/\//i.test(apiKey)) {
+            proxyUrl = apiKey.replace(/\/$/, "");
+            apiKey = "";
+          }
           const geminiCfg = {
-            enabled: Boolean(proxyUrl || process.env.GEMINI_API_KEY),
+            enabled: Boolean(proxyUrl || apiKey),
             mode: proxyUrl ? "vertex-proxy" : "api-key",
             proxyUrl,
             proxySecret: process.env.GEMINI_PROXY_SECRET || "",
-            apiKey: process.env.GEMINI_API_KEY || "",
+            apiKey,
             model: "gemini-2.5-flash-lite",
             googleOAuthClientId: (process.env.GOOGLE_OAUTH_CLIENT_ID || "").trim(),
           };
