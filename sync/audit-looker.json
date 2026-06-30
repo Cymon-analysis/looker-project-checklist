@@ -77,11 +77,11 @@
       "weeklyId": "w-1782809160136-6ccmu",
       "weeklyTitle": "Kickoff",
       "weeklyDate": "2026-06-30",
-      "done": true,
+      "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782809242753,
+      "updatedAt": 1782809243434,
       "by": "Simon",
-      "at": 1782809242753
+      "at": 1782809243434
     },
     {
       "id": "todo-1782809222092-mz3bj",
@@ -124,5 +124,5 @@
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782809242759
+  "updatedAt": 1782809243482
 }
