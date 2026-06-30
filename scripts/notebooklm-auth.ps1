@@ -14,8 +14,13 @@ Write-Host "Chrome va s'ouvrir. Connectez-vous avec @converteo.com, ouvrez noteb
 
 $chromium = Join-Path $env:LOCALAPPDATA "ms-playwright\chromium-1194\chrome-win\chrome.exe"
 if (-not (Test-Path $chromium)) {
-  Write-Host "Chromium Playwright manquant — téléchargement (~150 Mo)…" -ForegroundColor Yellow
-  npx.cmd playwright install chromium
+  Write-Host "Chromium Patchright manquant — téléchargement (~150 Mo)…" -ForegroundColor Yellow
+  Push-Location $InstallDir
+  try {
+    node node_modules\patchright\cli.js install chromium
+  } finally {
+    Pop-Location
+  }
 }
 
 Push-Location $InstallDir

@@ -26,8 +26,8 @@ try {
   npm install
   Write-Host "Compilation…" -ForegroundColor Cyan
   npm run build
-  Write-Host "Téléchargement Chromium (Playwright, ~150 Mo)…" -ForegroundColor Cyan
-  npx.cmd playwright install chromium
+  Write-Host "Téléchargement Chromium Patchright v1194 (~150 Mo)…" -ForegroundColor Cyan
+  node node_modules\patchright\cli.js install chromium
   Write-Host "`n✅ Installation terminée." -ForegroundColor Green
   Write-Host "Prochaine étape : .\scripts\notebooklm-auth.ps1" -ForegroundColor Green
 } finally {
