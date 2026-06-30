@@ -1,5 +1,8 @@
 # Intégration NotebookLM — enrichissement checklist / roadmap
 
+> **Mode économique (recommandé)** : auth sur votre PC + serveur à la demande, sans VM 24h/24.
+> Voir **[NOTEBOOKLM-ECONOMIQUE.md](./NOTEBOOKLM-ECONOMIQUE.md)** (~0 € pour NotebookLM).
+
 L'application web ne peut pas appeler NotebookLM directement depuis le navigateur (authentification Google, MCP local). L'architecture est :
 
 ```

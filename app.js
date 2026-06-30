@@ -180,7 +180,7 @@ async function updateNotebookLMUI() {
     statusEl.className = "calendar-status warn";
     btn.disabled = true;
     if (hintEl) {
-      hintEl.textContent = "Configurez GEMINI_PROXY_URL et déployez NotebookLM MCP (voir docs/NOTEBOOKLM-MCP.md).";
+      hintEl.textContent = "Lancez scripts/notebooklm-session.ps1 sur votre PC (mode économique). Voir docs/NOTEBOOKLM-ECONOMIQUE.md.";
       hintEl.classList.remove("hidden");
     }
     return;
@@ -198,7 +198,7 @@ async function updateNotebookLMUI() {
     btn.disabled = true;
     if (hintEl) {
       hintEl.textContent =
-        "Le proxy Cloud Run doit exposer NOTEBOOKLM_API_URL et NOTEBOOKLM_NOTEBOOK_ID. Voir docs/NOTEBOOKLM-MCP.md.";
+        "Démarrez une session (PC : notebooklm-session.ps1, ou VM : notebooklm-vm-start.sh). Voir docs/NOTEBOOKLM-ECONOMIQUE.md.";
       hintEl.classList.remove("hidden");
     }
   }
