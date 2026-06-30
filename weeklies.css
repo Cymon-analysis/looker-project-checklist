@@ -170,9 +170,9 @@
 }
 
 .import-modal-card {
-  max-width: 640px;
+  max-width: 720px;
   width: 100%;
-  max-height: 85vh;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }
@@ -187,8 +187,8 @@
 .import-actions-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 50vh;
+  gap: 12px;
+  max-height: 58vh;
   overflow-y: auto;
   margin-bottom: 8px;
 }
@@ -225,6 +225,49 @@
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.import-action-editable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-field-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+.import-title-input,
+.import-desc-input,
+.import-verify-input,
+.import-setup-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.import-title-input:focus,
+.import-desc-input:focus,
+.import-verify-input:focus,
+.import-setup-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.import-desc-input,
+.import-verify-input,
+.import-setup-input {
+  min-height: 56px;
 }
 
 .import-action-tags {

@@ -15,7 +15,7 @@ let isAnalyzingPaste = false;
 let pendingDeleteId = null;
 let isDeleting = false;
 
-const APP_BUILD = "20250629-6";
+const APP_BUILD = "20250629-7";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
@@ -232,7 +232,7 @@ async function showImportModal(weekly) {
 
   document.getElementById("importModalTitle").innerHTML = `Ajouter les actions à la todo ?${aiBadge}`;
   document.getElementById("importModalSubtitle").textContent =
-    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Sélectionnez celles à ajouter à la todo.`;
+    `${parsed.length} action${parsed.length > 1 ? "s" : ""} détectée${parsed.length > 1 ? "s" : ""} dans « ${weekly.title} ». Ajustez le titre et les détails avant import.`;
 
   const list = document.getElementById("importActionsList");
   list.innerHTML = parsed
@@ -244,14 +244,34 @@ async function showImportModal(weekly) {
         : `<span class="import-tag ${tag.className}">${escHtml(tag.text)}</span>`;
       const checked = duplicate ? "" : "checked";
       const disabled = duplicate ? "disabled" : "";
-      return `
-        <label class="import-action-row${duplicate ? " is-duplicate" : ""}">
+
+      if (duplicate) {
+        return `
+        <div class="import-action-row is-duplicate">
           <input type="checkbox" data-import-index="${index}" ${checked} ${disabled} />
           <div class="import-action-body">
             <div class="import-action-text">${escHtml(item.text)}</div>
             <div class="import-action-tags">${matchInfo}</div>
           </div>
-        </label>
+        </div>
+      `;
+      }
+
+      return `
+        <div class="import-action-row" data-import-row="${index}">
+          <input type="checkbox" data-import-index="${index}" ${checked} ${disabled} />
+          <div class="import-action-body import-action-editable">
+            <label class="import-field-label">Titre de la tâche</label>
+            <input type="text" class="import-title-input" data-import-index="${index}" value="${escHtml(item.text)}" maxlength="200" />
+            <label class="import-field-label">Contexte / description</label>
+            <textarea class="import-desc-input" data-import-index="${index}" rows="2" placeholder="Précisez le pourquoi ou le périmètre de l'action…">${escHtml(item.description || "")}</textarea>
+            <label class="import-field-label">Comment vérifier</label>
+            <textarea class="import-verify-input" data-import-index="${index}" rows="3" placeholder="Critères concrets pour valider que l'action est faite…">${escHtml(item.verify || "")}</textarea>
+            <label class="import-field-label">Comment mettre en place</label>
+            <textarea class="import-setup-input" data-import-index="${index}" rows="3" placeholder="Étapes concrètes, responsables, outils…">${escHtml(item.setup || "")}</textarea>
+            <div class="import-action-tags">${matchInfo}</div>
+          </div>
+        </div>
       `;
     })
     .join("");
@@ -273,15 +293,34 @@ function setAllImportChecks(checked) {
   });
 }
 
+function collectSelectedImports() {
+  const selected = [];
+  document.querySelectorAll("#importActionsList .import-action-row").forEach((row) => {
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    if (!checkbox?.checked || checkbox.disabled) return;
+
+    const index = Number(checkbox.dataset.importIndex);
+    const item = importAnalysis[index];
+    if (!item || isDuplicateStatus(item.status)) return;
+
+    const title = row.querySelector(".import-title-input")?.value.trim() || item.text;
+    if (!title) return;
+
+    selected.push({
+      text: title,
+      title,
+      description: row.querySelector(".import-desc-input")?.value.trim() || "",
+      verify: row.querySelector(".import-verify-input")?.value.trim() || "",
+      setup: row.querySelector(".import-setup-input")?.value.trim() || "",
+    });
+  });
+  return selected;
+}
+
 function confirmImport() {
   if (!pendingImportWeekly) return hideImportModal();
 
-  const selected = [];
-  document.querySelectorAll("#importActionsList input[type=checkbox]").forEach((el) => {
-    if (!el.checked || el.disabled) return;
-    const item = importAnalysis[Number(el.dataset.importIndex)];
-    if (item && !isDuplicateStatus(item.status)) selected.push(item);
-  });
+  const selected = collectSelectedImports();
 
   if (selected.length) {
     if (syncEnabled) setSyncStatus("connecting", "Enregistrement…");
@@ -290,7 +329,10 @@ function confirmImport() {
       selected.forEach((item) => {
         todos.unshift({
           id: newTodoId(),
-          title: item.text,
+          title: item.title || item.text,
+          description: item.description || "",
+          verify: item.verify || "",
+          setup: item.setup || "",
           weeklyId: pendingImportWeekly.id,
           weeklyTitle: pendingImportWeekly.title,
           weeklyDate: pendingImportWeekly.date,

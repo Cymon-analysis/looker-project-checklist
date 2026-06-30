@@ -11,6 +11,7 @@ let firstName = localStorage.getItem(PRENOM_KEY) || "";
 let applyingRemote = false;
 let metaSaveTimer = null;
 const openGuides = new Set();
+const openTodoGuides = new Set();
 let openPhases = new Set();
 
 function getChecks() {
@@ -302,7 +303,10 @@ function renderCustomTodos() {
 
   const visible = todos.filter((t) => {
     if (hideCompleted && t.done) return false;
-    if (q && !t.title.toLowerCase().includes(q)) return false;
+    if (q) {
+      const hay = `${t.title}${t.description || ""}${t.verify || ""}${t.setup || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     return true;
   });
 
@@ -315,37 +319,71 @@ function renderCustomTodos() {
   const done = todos.filter((t) => t.done).length;
   document.getElementById("customTodosCount").textContent = `${done}/${todos.length} terminées`;
 
-  list.innerHTML = visible
-    .map((todo) => {
-      const source = todo.weeklyTitle
-        ? `<p class="item-attribution">Issu de : ${escHtml(todo.weeklyTitle)}${todo.weeklyDate ? ` — ${formatDate(new Date(`${todo.weeklyDate}T12:00:00`).getTime())}` : ""}</p>`
+  list.innerHTML = "";
+  visible.forEach((todo) => {
+    const source = todo.weeklyTitle
+      ? `<p class="item-attribution">Issu de : ${escHtml(todo.weeklyTitle)}${todo.weeklyDate ? ` — ${formatDate(new Date(`${todo.weeklyDate}T12:00:00`).getTime())}` : ""}</p>`
+      : "";
+    const doneAttr =
+      todo.done && todo.by
+        ? `<p class="item-attribution">Validé par <strong>${escHtml(todo.by)}</strong>${todo.at ? ` — ${formatDate(todo.at)}` : ""}</p>`
         : "";
-      const doneAttr =
-        todo.done && todo.by
-          ? `<p class="item-attribution">Validé par <strong>${escHtml(todo.by)}</strong>${todo.at ? ` — ${formatDate(todo.at)}` : ""}</p>`
-          : "";
-      return `
-        <div class="item custom-todo${todo.done ? " done" : ""}">
-          <div class="item-check">
-            <input type="checkbox" ${todo.done ? "checked" : ""} aria-label="Marquer l'action comme faite" data-todo-id="${escHtml(todo.id)}" />
+    const desc = todo.description
+      ? `<p class="item-desc">${escHtml(todo.description)}</p>`
+      : "";
+
+    const itemEl = document.createElement("div");
+    itemEl.className = `item custom-todo${todo.done ? " done" : ""}`;
+    itemEl.innerHTML = `
+      <div class="item-check">
+        <input type="checkbox" ${todo.done ? "checked" : ""} aria-label="Marquer l'action comme faite" data-todo-id="${escHtml(todo.id)}" />
+      </div>
+      <div class="item-content">
+        <div class="item-title-row">
+          <span class="item-title">${escHtml(todo.title)}</span>
+          <span class="pill pill-high">Action weekly</span>
+        </div>
+        ${desc}
+        ${source}
+        ${doneAttr}
+        <button type="button" class="guide-toggle" aria-expanded="false" data-todo-guide="${escHtml(todo.id)}">
+          <span class="chevron">▶</span> Vérification et mise en place
+        </button>
+        <div class="guide-body" data-todo-guide-body="${escHtml(todo.id)}">
+          <div class="guide-section">
+            <h3>Comment vérifier</h3>
+            <p class="guide-text">${todo.verify ? escHtml(todo.verify) : '<em class="guide-empty">À compléter</em>'}</p>
           </div>
-          <div class="item-content">
-            <div class="item-title-row">
-              <span class="item-title">${escHtml(todo.title)}</span>
-              <span class="pill pill-high">Action weekly</span>
-            </div>
-            ${source}
-            ${doneAttr}
+          <div class="guide-section">
+            <h3>Comment mettre en place</h3>
+            <p class="guide-text">${todo.setup ? escHtml(todo.setup) : '<em class="guide-empty">À compléter</em>'}</p>
           </div>
         </div>
-      `;
-    })
-    .join("");
+      </div>
+    `;
 
-  list.querySelectorAll("[data-todo-id]").forEach((input) => {
-    input.addEventListener("change", (e) => {
+    const guideBtn = itemEl.querySelector(".guide-toggle");
+    const guideBody = itemEl.querySelector(".guide-body");
+    const guideOpen = openTodoGuides.has(todo.id);
+    if (guideOpen) {
+      guideBtn.classList.add("open");
+      guideBody.classList.add("open");
+      guideBtn.setAttribute("aria-expanded", "true");
+    }
+    guideBtn.addEventListener("click", () => {
+      const willOpen = !guideBody.classList.contains("open");
+      guideBtn.classList.toggle("open", willOpen);
+      guideBody.classList.toggle("open", willOpen);
+      guideBtn.setAttribute("aria-expanded", willOpen);
+      if (willOpen) openTodoGuides.add(todo.id);
+      else openTodoGuides.delete(todo.id);
+    });
+
+    itemEl.querySelector("[data-todo-id]").addEventListener("change", (e) => {
       toggleCustomTodo(e.target.dataset.todoId, e.target.checked);
     });
+
+    list.appendChild(itemEl);
   });
 }
 

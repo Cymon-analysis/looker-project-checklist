@@ -213,6 +213,7 @@ button:hover { background: var(--surface2); color: var(--text); }
 .guide-section { margin-bottom: 12px; }
 .guide-section:last-child { margin-bottom: 0; }
 .guide-text { font-size: 0.8125rem; color: var(--text2); }
+.guide-empty { color: var(--text3); font-style: italic; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text2); }
 .hidden { display: none !important; }
