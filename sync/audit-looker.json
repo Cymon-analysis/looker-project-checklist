@@ -23,7 +23,7 @@
     "layout": {
       "project-mgmt": {
         "startDay": 0,
-        "span": 3
+        "span": 5
       },
       "infra": {
         "startDay": 1,
@@ -55,7 +55,7 @@
       }
     },
     "startDate": "2026-06-29",
-    "updatedAt": 1782767457930
+    "updatedAt": 1782815199262
   },
   "weeklies": [
     {
@@ -120,5 +120,5 @@
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782813860408
+  "updatedAt": 1782815199265
 }
