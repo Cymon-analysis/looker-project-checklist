@@ -79,7 +79,8 @@
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782809222092
+      "updatedAt": 1782810268211,
+      "phaseId": "infra"
     },
     {
       "id": "todo-1782809222092-rj7cp",
@@ -89,7 +90,8 @@
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782809222092
+      "updatedAt": 1782810268211,
+      "phaseId": "infra"
     },
     {
       "id": "todo-1782809222092-we809",
@@ -99,7 +101,8 @@
       "weeklyDate": "2026-06-30",
       "done": false,
       "createdAt": 1782809222092,
-      "updatedAt": 1782809222092
+      "updatedAt": 1782810268211,
+      "phaseId": "platform"
     }
   ],
   "deletedWeeklyIds": {
@@ -109,10 +112,13 @@
   "deletedTodoIds": {
     "todo-1782809222092-l95to": 1782809559339
   },
+  "deletedItemIds": {
+    "pm-01": 1782810274828
+  },
   "openPhases": [
     "infra",
     "lookml",
     "project-mgmt"
   ],
-  "updatedAt": 1782809560007
+  "updatedAt": 1782810274834
 }
