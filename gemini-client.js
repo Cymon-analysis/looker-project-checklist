@@ -1,5 +1,13 @@
 (function () {
-  const CFG = () => window.GEMINI_CONFIG || { enabled: false, apiKey: "", model: "gemini-2.5-flash-lite" };
+  const CFG = () =>
+    window.GEMINI_CONFIG || {
+      enabled: false,
+      mode: "api-key",
+      apiKey: "",
+      proxyUrl: "",
+      proxySecret: "",
+      model: "gemini-2.5-flash-lite",
+    };
 
   const MODEL_FALLBACKS = [
     "gemini-2.5-flash-lite",
@@ -13,7 +21,14 @@
 
   function isEnabled() {
     const c = CFG();
-    return Boolean(c.enabled && c.apiKey);
+    if (!c.enabled) return false;
+    if (c.mode === "vertex-proxy" || c.proxyUrl) return Boolean(c.proxyUrl);
+    return Boolean(c.apiKey);
+  }
+
+  function usesProxy() {
+    const c = CFG();
+    return Boolean(c.proxyUrl) || c.mode === "vertex-proxy";
   }
 
   function getLastError() {
@@ -53,6 +68,60 @@
     const c = CFG();
     if (!isEnabled()) throw new Error("gemini_disabled");
 
+    if (usesProxy()) {
+      return generateJsonViaProxy(systemPrompt, userContent);
+    }
+
+    return generateJsonViaApiKey(systemPrompt, userContent);
+  }
+
+  async function generateJsonViaProxy(systemPrompt, userContent) {
+    const c = CFG();
+    const baseUrl = String(c.proxyUrl || "").replace(/\/$/, "");
+    let lastBody = "";
+    let lastStatus = 0;
+
+    for (const model of modelCandidates()) {
+      const headers = { "Content-Type": "application/json" };
+      if (c.proxySecret) headers["X-Gemini-Proxy-Secret"] = c.proxySecret;
+
+      const res = await fetch(`${baseUrl}/v1/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          systemPrompt,
+          userContent,
+          model,
+          responseMimeType: "application/json",
+          temperature: 0.1,
+        }),
+      });
+
+      if (!res.ok) {
+        lastStatus = res.status;
+        lastBody = await res.text();
+        if ([429, 503, 404].includes(res.status)) continue;
+        lastError = formatApiError(res.status, lastBody);
+        throw new Error(`gemini_http_${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        lastError = "Réponse vide";
+        continue;
+      }
+      lastError = null;
+      lastModelUsed = data.model || model;
+      return extractJson(text);
+    }
+
+    lastError = formatApiError(lastStatus, lastBody);
+    throw new Error(`gemini_http_${lastStatus || "all_failed"}`);
+  }
+
+  async function generateJsonViaApiKey(systemPrompt, userContent) {
+    const c = CFG();
     let lastBody = "";
     let lastStatus = 0;
 

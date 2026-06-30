@@ -18,16 +18,25 @@ La checklist synchronise l'état via un fichier JSON dans ce dépôt (`sync/{roo
 
 ## Gemini (analyse des CR weekly)
 
+Deux modes possibles :
+
+### Mode A — Clé API (Google AI Studio)
+
 1. Créez une clé API sur [Google AI Studio](https://aistudio.google.com/apikey).
+2. Secret GitHub : `GEMINI_API_KEY`
+3. Relancez **Deploy GitHub Pages**.
 
-2. Ajoutez le secret dans GitHub :
-   - Dépôt → **Settings** → **Secrets and variables** → **Actions**
-   - Nom : `GEMINI_API_KEY`
-   - Valeur : votre clé API Gemini
+### Mode B — Proxy Vertex AI (sans clé API, compte de service)
 
-3. Relancez le workflow **Deploy GitHub Pages**.
+Si les clés API sont désactivées par votre organisation, suivez le guide détaillé :
 
-Fonctionnalités activées :
+**[docs/GEMINI-VERTEX-PROXY.md](GEMINI-VERTEX-PROXY.md)**
+
+Secrets GitHub :
+- `GEMINI_PROXY_URL` — URL Cloud Run du proxy
+- `GEMINI_PROXY_SECRET` — (optionnel) secret partagé
+
+Fonctionnalités activées (les deux modes) :
 - Séparation automatique « ce qu'il s'est dit » / « actions » lors du collage d'un CR
 - Détection intelligente des doublons lors de l'import vers la todo
 

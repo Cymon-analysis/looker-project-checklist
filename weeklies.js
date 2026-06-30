@@ -15,7 +15,7 @@ let isAnalyzingPaste = false;
 let pendingDeleteId = null;
 let isDeleting = false;
 
-const APP_BUILD = "20250629-5";
+const APP_BUILD = "20250629-6";
 let notesPreviewTimer = null;
 
 function setGeminiStatus(kind, message) {
