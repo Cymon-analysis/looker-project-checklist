@@ -26,51 +26,43 @@ Le proxy Cloud Run appelle temporairement votre PC via un **tunnel HTTPS gratuit
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install) (pour mettre à jour le proxy)
 - Votre notebook : URL `https://notebooklm.google.com/notebook/XXXXXXXX`
 
-### 1. Auth Google (une fois, sur votre PC)
+### 1. Installation locale (une fois)
 
-**PowerShell** (si `npx` est bloqué, utilisez `npx.cmd` ou **Invite de commandes cmd**) :
-
-```powershell
-npx.cmd -y @roomi-fields/notebooklm-mcp@latest setup-auth
-```
-
-Si ça bloque encore :
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Puis relancez `npx -y @roomi-fields/notebooklm-mcp@latest setup-auth`.
-
-→ Une fenêtre Chrome s'ouvre : connectez-vous avec **@converteo.com**.
-
-Les identifiants sont stockés localement (pas sur GCP).
-
-### 2. Lancer une session d'enrichissement
-
-À chaque fois que vous voulez utiliser « Enrichir les tâches » dans la checklist :
+Depuis le dossier du projet :
 
 ```powershell
 cd chemin\vers\looker-project-checklist
+.\scripts\notebooklm-install.ps1
+```
+
+Installez aussi **cloudflared** (une fois) :
+```powershell
+winget install Cloudflare.cloudflared
+```
+
+### 2. Auth Google (une fois)
+
+**N'utilisez pas** `npx … setup-auth` seul — cela lance le serveur MCP sans ouvrir Chrome.
+
+```powershell
+.\scripts\notebooklm-auth.ps1
+```
+
+→ Chrome s'ouvre : connectez-vous **@converteo.com**, ouvrez notebooklm.google.com, fermez Chrome.
+
+### 3. Lancer une session d'enrichissement
+
+```powershell
+$env:NOTEBOOKLM_NOTEBOOK_URL = "https://notebooklm.google.com/notebook/f6b2b8dd-61b0-4e6b-b099-501a13857865"
 .\scripts\notebooklm-session.ps1
 ```
 
-Le script :
-1. Démarre NotebookLM MCP en HTTP sur `localhost:3000`
-2. Ouvre un tunnel public (`*.trycloudflare.com`)
-3. Met à jour `NOTEBOOKLM_API_URL` sur `looker-gemini-proxy`
-4. Enregistre le notebook si besoin
+**Laissez le terminal ouvert** pendant l'enrichissement.
 
-**Laissez la fenêtre PowerShell ouverte** pendant l'enrichissement.
-
-### 3. Utiliser l'app
+### 4. Utiliser l'app
 
 1. Checklist → **Enrichir les tâches**
 2. Quand vous avez fini : `Ctrl+C` dans PowerShell (arrête tunnel + serveur)
-
-### 4. Arrêt
-
-`Ctrl+C` dans le terminal du script → le tunnel se ferme, plus d'exposition publique.
 
 ---
 
@@ -156,6 +148,7 @@ Note l'URL affichée → le proxy est mis à jour automatiquement.
 | Problème | Solution |
 |----------|----------|
 | « NotebookLM non connecté » | Relancer `notebooklm-session.ps1` ou `notebooklm-vm-start.sh` |
-| Auth expirée | Relancer `npx.cmd … setup-auth` sur le PC |
+| Auth expirée | Relancer `.\scripts\notebooklm-auth.ps1` |
+| `npx setup-auth` lance MCP sans Chrome | Utiliser `.\scripts\notebooklm-auth.ps1` à la place |
 | Tunnel mort | `Ctrl+C` et relancer le script session |
 | IP VM changée | Normal si VM arrêtée — relancer `notebooklm-vm-start.sh` |
